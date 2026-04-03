@@ -47,7 +47,6 @@ export function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [orders, setOrders] = useState<Order[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [hasAutoSelectedDate, setHasAutoSelectedDate] = useState(false)
   const [newOrder, setNewOrder] = useState({
     customerTitle: "Anh" as "Anh" | "Chị",
     customerName: "",
@@ -77,11 +76,6 @@ export function DailyDashboard() {
     }
 
     setOrders(data || [])
-
-    if (!hasAutoSelectedDate && data && data.length > 0) {
-      setSelectedDate(new Date(data[0].date))
-      setHasAutoSelectedDate(true)
-    }
   }
 
   const handleAmountChange = (value: string) => {

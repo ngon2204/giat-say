@@ -20,7 +20,7 @@ const supplyTypes = [
   // Nước xả Comfort
   { value: "softener-comfort-baby-3l", label: "Nước xả Comfort Em bé 3L6", category: "Nước xả" },
   { value: "softener-comfort-sunny-3l7", label: "Nước xả Comfort Nắng mới 3L7", category: "Nước xả" },
-  { value: "softener-comfort-dry-2l", label: "Nước xả Comfort Sau sấy 4L", category: "Nước xả" },
+  { value: "softener-comfort-dry-2l", label: "Nước xả Comfort Kiêu Sa 3L7", category: "Nước xả" },
   { value: "softener-comfort-banmai-3l7", label: "Nước xả Comfort Ban mai 3L7", category: "Nước xả" },
   { value: "softener-ecolife", label: "Nước xả Comfort Vườn Xuân 3L7", category: "Nước xả" },
 
@@ -63,7 +63,6 @@ export function SupplyDashboard() {
   const [supplies, setSupplies] = useState<Supply[]>([])
   const [inventory, setInventory] = useState<Inventory>({})
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [hasAutoSelectedPeriod, setHasAutoSelectedPeriod] = useState(false)
   const [newSupply, setNewSupply] = useState({
     type: "",
     quantity: "",
@@ -90,14 +89,6 @@ export function SupplyDashboard() {
     }
 
     setSupplies(data || [])
-
-    if (!hasAutoSelectedPeriod && data && data.length > 0) {
-      const latestDate = new Date(data[0].date)
-      setSelectedDate(latestDate)
-      setSelectedMonth(latestDate.getMonth() + 1)
-      setSelectedYear(latestDate.getFullYear())
-      setHasAutoSelectedPeriod(true)
-    }
   }
 
   const fetchInventory = async () => {

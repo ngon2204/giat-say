@@ -29,7 +29,6 @@ export function RevenueDashboard() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [orders, setOrders] = useState<Order[]>([])
   const [isExporting, setIsExporting] = useState(false)
-  const [hasAutoSelectedPeriod, setHasAutoSelectedPeriod] = useState(false)
 
   useEffect(() => {
     fetchOrders()
@@ -45,13 +44,6 @@ export function RevenueDashboard() {
     }
 
     setOrders(data || [])
-
-    if (!hasAutoSelectedPeriod && data && data.length > 0) {
-      const [year, month] = data[0].date.split("-").map(Number)
-      setSelectedMonth(month)
-      setSelectedYear(year)
-      setHasAutoSelectedPeriod(true)
-    }
   }
 
   const handleExportExcel = async () => {

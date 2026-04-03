@@ -31,7 +31,7 @@ interface Supply {
 const supplyTypes = [
   { value: "softener-comfort-baby-3l", label: "Nước xả Comfort Em bé 3L6", category: "Nước xả" },
   { value: "softener-comfort-sunny-3l7", label: "Nước xả Comfort Nắng mới 3L7", category: "Nước xả" },
-  { value: "softener-comfort-dry-2l", label: "Nước xả Comfort Sau sấy 4L", category: "Nước xả" },
+  { value: "softener-comfort-dry-2l", label: "Nước xả Comfort Kiêu Sa 3L7", category: "Nước xả" },
   { value: "softener-comfort-banmai-3l7", label: "Nước xả Comfort Ban mai 3L7", category: "Nước xả" },
   { value: "softener-ecolife", label: "Nước xả Comfort Vườn Xuân 3L7", category: "Nước xả" },
   { value: "softener-hygiene-3l5", label: "Nước xả Hygiene 3L5", category: "Nước xả" },
@@ -57,7 +57,6 @@ export function ProfitDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [bills, setBills] = useState<UtilityBill[]>([])
   const [supplies, setSupplies] = useState<Supply[]>([])
-  const [hasAutoSelectedPeriod, setHasAutoSelectedPeriod] = useState(false)
 
   const fetchOrders = async () => {
     const { data } = await supabase.from("orders").select("*")
@@ -85,42 +84,6 @@ export function ProfitDashboard() {
     }, 5000)
     return () => clearInterval(interval)
   }, [])
-
-  useEffect(() => {
-    if (hasAutoSelectedPeriod) {
-      return
-    }
-
-    const candidates: Array<{ month: number; year: number }> = []
-
-    if (orders.length > 0) {
-      const [year, month] = orders[0].date.split("-").map(Number)
-      candidates.push({ month, year })
-    }
-
-    if (supplies.length > 0) {
-      const [year, month] = supplies[0].date.split("-").map(Number)
-      candidates.push({ month, year })
-    }
-
-    if (bills.length > 0) {
-      candidates.push({ month: bills[0].month, year: bills[0].year })
-    }
-
-    if (candidates.length === 0) {
-      return
-    }
-
-    candidates.sort((left, right) => {
-      if (left.year !== right.year) return left.year - right.year
-      return left.month - right.month
-    })
-
-    const latest = candidates[candidates.length - 1]
-    setSelectedMonth(latest.month)
-    setSelectedYear(latest.year)
-    setHasAutoSelectedPeriod(true)
-  }, [orders, bills, supplies, hasAutoSelectedPeriod])
 
   const months = [
     { value: 1, label: "Tháng 1" },

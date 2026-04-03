@@ -17,7 +17,6 @@ export function UtilityDashboard() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [bills, setBills] = useState<UtilityBill[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [hasAutoSelectedPeriod, setHasAutoSelectedPeriod] = useState(false)
   const [newBill, setNewBill] = useState({
     type: "electric" as "electric" | "water",
     amount: "",
@@ -42,12 +41,6 @@ export function UtilityDashboard() {
     }
 
     setBills(data || [])
-
-    if (!hasAutoSelectedPeriod && data && data.length > 0) {
-      setSelectedMonth(data[0].month)
-      setSelectedYear(data[0].year)
-      setHasAutoSelectedPeriod(true)
-    }
   }
 
   const handleAmountChange = (value: string) => {
