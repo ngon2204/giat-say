@@ -107,6 +107,15 @@
     opacity: 0.72;
   }
 
+  input[type="date"] {
+    min-width: 0;
+    width: 100%;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+
   button,
   input,
   select,

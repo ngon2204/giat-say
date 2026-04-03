@@ -36,12 +36,11 @@ export function MobileNavigation({ activeTab, setActiveTab }: MobileNavigationPr
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-white/70 bg-white/76 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-xl items-center gap-3 rounded-[1.45rem] border border-white/80 bg-white/92 px-4 py-3 shadow-soft">
+        <div className="mx-auto flex max-w-xl items-center gap-3 rounded-[1.45rem] border border-white/80 bg-white/92 px-4 py-2.5 shadow-soft">
           <div className="flex size-11 items-center justify-center rounded-[1rem] bg-white shadow-xs ring-1 ring-slate-200/70">
             <Image src="/images/logo.png" alt="Giặt Sấy Vui Logo" width={36} height={36} className="object-contain" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-slate-400">Laundry Desk</p>
             <h1 className="truncate text-[1.05rem] font-semibold text-slate-800">{currentLabel}</h1>
           </div>
         </div>
