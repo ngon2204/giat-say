@@ -1,0 +1,215 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --background: 214 45% 98%;
+  --foreground: 223 30% 24%;
+  --card: 0 0% 100%;
+  --card-foreground: 223 30% 24%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 223 30% 24%;
+  --primary: 226 79% 56%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 44% 96%;
+  --secondary-foreground: 223 24% 31%;
+  --muted: 218 42% 96%;
+  --muted-foreground: 219 15% 48%;
+  --accent: 218 100% 97%;
+  --accent-foreground: 226 79% 56%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 27% 88%;
+  --input: 220 27% 88%;
+  --ring: 226 79% 56%;
+  --chart-1: 226 79% 56%;
+  --chart-2: 158 64% 40%;
+  --chart-3: 35 91% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 340 75% 55%;
+  --radius: 1.25rem;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 223 30% 24%;
+  --sidebar-primary: 226 79% 56%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 218 100% 97%;
+  --sidebar-accent-foreground: 226 79% 56%;
+  --sidebar-border: 220 27% 88%;
+  --sidebar-ring: 226 79% 56%;
+}
+
+@theme inline {
+  --font-sans: var(--font-app-sans);
+  --font-display: var(--font-app-display);
+  --font-mono: var(--font-app-mono);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-soft: 0 14px 40px -24px rgba(76, 102, 157, 0.18);
+  --shadow-float: 0 28px 70px -34px rgba(76, 102, 157, 0.24);
+  --shadow-press: 0 10px 28px -18px rgba(76, 102, 157, 0.2);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(79, 70, 229, 0.1), transparent 34%),
+      radial-gradient(circle at 82% 10%, rgba(14, 165, 233, 0.11), transparent 28%),
+      radial-gradient(circle at 70% 90%, rgba(244, 114, 182, 0.08), transparent 22%),
+      linear-gradient(180deg, #f7faff 0%, #fbfdff 42%, #f6f9ff 100%);
+    font-feature-settings: "cv02" 1, "cv03" 1, "cv04" 1, "ss01" 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.72;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display;
+    letter-spacing: -0.03em;
+  }
+
+  ::selection {
+    background: rgba(37, 99, 235, 0.18);
+  }
+}
+
+@layer utilities {
+  .dashboard-page {
+    @apply space-y-5 px-4 sm:space-y-6 sm:px-5 md:px-0;
+  }
+
+  .dashboard-toolbar {
+    @apply flex flex-col gap-3 md:flex-row md:items-center md:justify-between;
+  }
+
+  .dashboard-filter-row {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
+  }
+
+  .dashboard-panel {
+    @apply rounded-[1.9rem] border border-white/80 bg-white/94 shadow-float backdrop-blur-xl;
+  }
+
+  .dashboard-panel-soft {
+    @apply rounded-[1.45rem] border border-slate-200/75 bg-slate-50/88;
+  }
+
+  .dashboard-metric {
+    @apply rounded-[1.65rem] border border-white/80 bg-white/96 p-5 shadow-soft;
+  }
+
+  .dashboard-control {
+    @apply h-12 rounded-[1.1rem] border border-slate-200/80 bg-white/90 text-slate-700 shadow-press;
+  }
+
+  .dashboard-primary-button {
+    @apply h-12 rounded-[1.15rem] px-5 text-white shadow-[0_22px_44px_-22px_rgba(79,70,229,0.42)];
+  }
+
+  .dashboard-label {
+    @apply text-sm font-semibold tracking-[0.01em] text-slate-500;
+  }
+
+  .dashboard-value {
+    @apply text-[2rem] font-semibold tracking-tight text-slate-800 sm:text-[2.25rem];
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  .dashboard-subtle {
+    @apply text-sm text-slate-500;
+  }
+
+  .dashboard-empty {
+    @apply flex flex-col items-center justify-center gap-3 py-14 text-center text-slate-500;
+  }
+
+  .dashboard-list-row {
+    @apply flex items-start gap-3 rounded-[1.35rem] border border-slate-200/80 bg-slate-50/88 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300/90 hover:bg-white hover:shadow-soft;
+  }
+
+  .mobile-content-wrapper {
+    @apply space-y-4 p-4 sm:space-y-6 sm:p-0;
+  }
+
+  .mobile-dashboard-grid {
+    @apply grid grid-cols-1;
+  }
+
+  .mobile-dashboard-card {
+    @apply rounded-[1.75rem] border border-white/80 bg-white/95 shadow-soft backdrop-blur;
+  }
+
+  .mobile-grid-gap {
+    @apply gap-4 sm:gap-6;
+  }
+
+  .mobile-button-sm {
+    @apply h-11 rounded-xl;
+  }
+
+  .mobile-text-base {
+    @apply text-base;
+  }
+
+  .mobile-text-sm {
+    @apply text-sm;
+  }
+
+  .mobile-text-xs {
+    @apply text-xs;
+  }
+}
