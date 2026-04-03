@@ -6,7 +6,7 @@ export async function listOrders() {
     `
       SELECT
         id,
-        date,
+        TO_CHAR(date, 'YYYY-MM-DD') AS date,
         customer_name,
         phone,
         services,
@@ -41,7 +41,7 @@ export async function createOrder(order: NewOrder) {
       VALUES ($1, $2, $3, $4::text[], $5, $6, $7, $8, $9)
       RETURNING
         id,
-        date,
+        TO_CHAR(date, 'YYYY-MM-DD') AS date,
         customer_name,
         phone,
         services,
@@ -77,7 +77,7 @@ export async function listSupplies() {
     `
       SELECT
         id,
-        date,
+        TO_CHAR(date, 'YYYY-MM-DD') AS date,
         type,
         quantity,
         unit_price,
@@ -106,7 +106,7 @@ export async function createSupply(supply: NewSupply) {
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING
         id,
-        date,
+        TO_CHAR(date, 'YYYY-MM-DD') AS date,
         type,
         quantity,
         unit_price,
