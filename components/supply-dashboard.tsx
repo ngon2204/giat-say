@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { AlertCircle, Archive, Boxes, PackageSearch, Plus, Trash2, TriangleAlert, TrendingDown } from "lucide-react"
+import { AlertCircle, Archive, Boxes, PackageSearch, Plus, Trash2, TrendingDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,8 +37,6 @@ function formatCurrency(amount: number) {
 function formatQuantity(quantity: number) {
   return `${quantity.toLocaleString("vi-VN")}`
 }
-
-const LOW_STOCK_THRESHOLD = 3
 
 export function SupplyDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -271,15 +269,11 @@ export function SupplyDashboard() {
         stock,
         lots,
         inventoryValue,
-        oldestLotDate: lots[0]?.date ?? null,
       }
     })
     .filter((item) => item.stock > 0)
 
   const inventoryValue = periodInventoryItems.reduce((sum, item) => sum + item.inventoryValue, 0)
-  const lowStockItems = periodInventoryItems
-    .filter((item) => item.stock <= LOW_STOCK_THRESHOLD)
-    .sort((left, right) => left.stock - right.stock || left.label.localeCompare(right.label))
 
   const groupedInventory = periodInventoryItems.reduce(
     (acc, item) => {
@@ -522,7 +516,7 @@ export function SupplyDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <Card className="dashboard-metric border-sky-100/80 bg-[linear-gradient(180deg,rgba(239,246,255,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
           <CardHeader className="p-0">
             <div className="flex items-center justify-between">
@@ -569,150 +563,72 @@ export function SupplyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="dashboard-metric border-rose-100/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
-          <CardHeader className="p-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base text-rose-700">Sắp hết hàng</CardTitle>
-              <TriangleAlert className="size-4 text-rose-500" />
-            </div>
-            <CardDescription>Ngưỡng cảnh báo ≤ {LOW_STOCK_THRESHOLD} sản phẩm</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-rose-600">{lowStockItems.length}</div>
-            <p className="mt-2 text-sm text-rose-500">
-              {lowStockItems.length === 0 ? "Tồn kho đang an toàn" : "Nên chuẩn bị nhập thêm trong kỳ tới"}
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
-      <Card
-        className={
-          lowStockItems.length > 0
-            ? "dashboard-panel border-rose-100/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.72)_0%,rgba(255,255,255,0.95)_100%)]"
-            : "dashboard-panel border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.72)_0%,rgba(255,255,255,0.95)_100%)]"
-        }
-      >
+      <Card className="dashboard-panel">
         <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-          <CardTitle className={lowStockItems.length > 0 ? "text-rose-700" : "text-emerald-700"}>
-            {lowStockItems.length > 0 ? "Cần nhập lại sớm" : "Tồn kho đang ổn định"}
-          </CardTitle>
+          <CardTitle>Tồn Theo Lô Cuối Kỳ</CardTitle>
           <CardDescription>
-            {lowStockItems.length > 0
-              ? "Các mặt hàng cuối kỳ đang xuống thấp và nên theo dõi để không thiếu hàng."
-              : "Chưa có mặt hàng nào chạm ngưỡng cảnh báo trong kỳ này."}
+            Chốt tồn tới ngày {new Date(periodEndDate).toLocaleDateString("vi-VN")}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
-          {lowStockItems.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {lowStockItems.map((item) => (
-                <div key={item.value} className="rounded-[1.2rem] border border-white/80 bg-white/92 p-4 shadow-soft">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-slate-800">{item.label}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item.category}</p>
-                    </div>
-                    <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-600">
-                      {formatQuantity(item.stock)}
-                    </span>
-                  </div>
-                  <div className="mt-3 space-y-1 text-sm text-slate-500">
-                    <p>Giá trị tồn: {formatCurrency(item.inventoryValue)}</p>
-                    <p>
-                      Lô còn cũ nhất:{" "}
-                      {item.oldestLotDate ? new Date(item.oldestLotDate).toLocaleDateString("vi-VN") : "Chưa có"}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          {Object.keys(groupedInventory).length === 0 ? (
+            <div className="dashboard-empty py-10">
+              <div className="flex size-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                <PackageSearch className="size-6" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-slate-700">Chưa có tồn kho cuối kỳ</p>
+                <p className="text-sm text-slate-500">
+                  Hãy chọn tháng khác hoặc thêm giao dịch nhập kho để theo dõi từng lô còn lại.
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="dashboard-empty py-8">
-              <Archive className="size-6 text-emerald-500" />
-              <div className="space-y-1">
-                <p className="text-lg font-semibold text-slate-700">Không có mã nào sắp hết</p>
-                <p className="text-sm text-slate-500">Bạn có thể tiếp tục theo dõi theo lô mà chưa cần nhập bổ sung.</p>
-              </div>
+            <div className="space-y-6">
+              {Object.entries(groupedInventory).map(([category, items]) => (
+                <section key={category} className="space-y-4">
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">{category}</h4>
+                  <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                    {items.map((item) => (
+                      <div key={item.value} className="rounded-[1.35rem] border border-slate-200/80 bg-slate-50/92 p-4 sm:p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-800">{item.label}</p>
+                            <p className="mt-1 text-sm text-slate-500">Còn {formatQuantity(item.stock)} sản phẩm ở cuối kỳ</p>
+                            <p className="mt-1 text-xs font-medium text-slate-400">Giá trị tồn: {formatCurrency(item.inventoryValue)}</p>
+                          </div>
+                          <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-emerald-600 shadow-xs">
+                            {formatQuantity(item.stock)}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                          {item.lots.map((lot) => (
+                            <div
+                              key={lot.lotKey}
+                              className="flex flex-col gap-2 rounded-[1rem] bg-white/90 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-medium text-slate-700">Lô {new Date(lot.date).toLocaleDateString("vi-VN")}</p>
+                                <p className="text-xs text-slate-500">{formatCurrency(lot.unitPrice)} mỗi sản phẩm</p>
+                              </div>
+                              <p className="font-semibold text-slate-700 sm:whitespace-nowrap">
+                                Còn {formatQuantity(lot.remainingQuantity)}/{formatQuantity(lot.importedQuantity)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Card className="dashboard-panel">
-          <CardHeader>
-            <CardTitle>Tồn Theo Lô Cuối Kỳ</CardTitle>
-            <CardDescription>
-              Chốt tồn tới ngày {new Date(periodEndDate).toLocaleDateString("vi-VN")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {Object.keys(groupedInventory).length === 0 ? (
-              <div className="dashboard-empty py-10">
-                <div className="flex size-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                  <PackageSearch className="size-6" />
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-slate-700">Chưa có tồn kho cuối kỳ</p>
-                  <p className="text-sm text-slate-500">
-                    Hãy chọn tháng khác hoặc thêm giao dịch nhập kho để theo dõi từng lô còn lại.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {Object.entries(groupedInventory).map(([category, items]) => (
-                  <div key={category} className="space-y-3">
-                    <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">{category}</h4>
-                    <div className="space-y-3">
-                      {items.map((item) => (
-                        <div key={item.value} className="rounded-[1.35rem] border border-slate-200/80 bg-slate-50/92 p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-slate-800">{item.label}</p>
-                              <p className="mt-1 text-sm text-slate-500">
-                                Còn {formatQuantity(item.stock)} sản phẩm ở cuối kỳ
-                              </p>
-                              <p className="mt-1 text-xs font-medium text-slate-400">
-                                Giá trị tồn: {formatCurrency(item.inventoryValue)}
-                              </p>
-                            </div>
-                            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-emerald-600 shadow-xs">
-                              {formatQuantity(item.stock)}
-                            </span>
-                          </div>
-
-                          <div className="mt-3 space-y-2">
-                            {item.lots.map((lot) => (
-                              <div
-                                key={lot.lotKey}
-                                className="flex items-center justify-between gap-3 rounded-[1rem] bg-white/90 px-3 py-2 text-sm"
-                              >
-                                <div className="min-w-0">
-                                  <p className="font-medium text-slate-700">
-                                    Lô {new Date(lot.date).toLocaleDateString("vi-VN")}
-                                  </p>
-                                  <p className="text-xs text-slate-500">
-                                    {formatCurrency(lot.unitPrice)} mỗi sản phẩm
-                                  </p>
-                                </div>
-                                <p className="whitespace-nowrap font-semibold text-slate-700">
-                                  Còn {formatQuantity(lot.remainingQuantity)}/{formatQuantity(lot.importedQuantity)}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
       <Card className="dashboard-panel">
         <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
@@ -729,7 +645,7 @@ export function SupplyDashboard() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-3 lg:grid-cols-2">
               {monthlyUsageEntries.map((item) => (
                 <div key={item.type} className="rounded-[1.2rem] border border-slate-200/80 bg-slate-50/88 p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -774,8 +690,8 @@ export function SupplyDashboard() {
                   const displayTotal = supply.action === "export" ? exportCost?.totalCost ?? supply.total_price : supply.total_price
 
                   return (
-                    <div key={supply.id} className="dashboard-list-row justify-between">
-                      <div className="flex flex-1 items-start justify-between gap-3">
+                    <div key={supply.id} className="dashboard-list-row">
+                      <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex-1">
                           <h4 className="font-semibold text-slate-800">{getSupplyLabel(supply.type)}</h4>
                           <p className="text-sm text-muted-foreground">
@@ -801,8 +717,8 @@ export function SupplyDashboard() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <div className="text-right">
+                        <div className="flex items-center justify-between gap-2 sm:justify-end">
+                          <div className="text-left sm:text-right">
                             <p className={`font-bold ${supply.action === "import" ? "text-red-600" : "text-blue-600"}`}>
                               {supply.action === "import" ? "-" : ""}
                               {formatCurrency(displayTotal)}
