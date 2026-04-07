@@ -45,9 +45,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen text-slate-700">
-      <div className="lg:hidden flex min-h-screen flex-col">
+      <div className="flex min-h-[100dvh] flex-col overflow-x-hidden lg:hidden">
         <MobileNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="flex-1 pb-[calc(env(safe-area-inset-bottom)+6.9rem)] pt-3">{tabs[activeTab]}</main>
+        <main className="mx-auto flex-1 w-full max-w-xl pb-[calc(env(safe-area-inset-bottom)+7.2rem)] pt-3">
+          {tabs[activeTab]}
+        </main>
       </div>
 
       <div className="hidden min-h-screen lg:flex">

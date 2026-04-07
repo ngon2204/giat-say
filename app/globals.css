@@ -101,6 +101,7 @@
       linear-gradient(180deg, #f7faff 0%, #fbfdff 42%, #f6f9ff 100%);
     font-feature-settings: "cv02" 1, "cv03" 1, "cv04" 1, "ss01" 1;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
 
   input[type="date"]::-webkit-calendar-picker-indicator {

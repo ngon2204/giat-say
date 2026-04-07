@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { format } from "date-fns"
-import { AlertCircle, PackageSearch, Plus, Trash2 } from "lucide-react"
+import { AlertCircle, Archive, Boxes, PackageSearch, Plus, Trash2, TriangleAlert, TrendingDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,6 +37,8 @@ function formatCurrency(amount: number) {
 function formatQuantity(quantity: number) {
   return `${quantity.toLocaleString("vi-VN")}`
 }
+
+const LOW_STOCK_THRESHOLD = 3
 
 export function SupplyDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -222,56 +224,73 @@ export function SupplyDashboard() {
     return month === selectedMonth && year === selectedYear
   })
 
-  const monthlyExpenses = monthlySupplies
-    .filter((supply) => supply.action === "import")
-    .reduce((sum, supply) => sum + supply.total_price, 0)
+  const monthlyImports = monthlySupplies.filter((supply) => supply.action === "import")
+  const monthlyExports = monthlySupplies.filter((supply) => supply.action === "export")
 
-  const monthlyUsage = monthlySupplies
-    .filter((supply) => supply.action === "export")
-    .reduce(
-      (acc, supply) => {
-        if (!acc[supply.type]) {
-          acc[supply.type] = { quantity: 0, cost: 0 }
-        }
+  const monthlyImportValue = monthlyImports.reduce((sum, supply) => sum + supply.total_price, 0)
+  const monthlyImportQuantity = monthlyImports.reduce((sum, supply) => sum + supply.quantity, 0)
+  const monthlyExportQuantity = monthlyExports.reduce((sum, supply) => sum + supply.quantity, 0)
 
-        const fifoCost = fullInventorySnapshot.exportCostsById[supply.id]?.totalCost ?? supply.total_price
-
-        acc[supply.type].quantity += supply.quantity
-        acc[supply.type].cost += fifoCost
-        return acc
-      },
-      {} as Record<string, { quantity: number; cost: number }>,
-    )
-
-  const groupedInventory = supplyTypes.reduce(
-    (acc, type) => {
-      const stock = periodInventorySnapshot.stockByType[type.value] || 0
-      const lots = periodInventorySnapshot.lotsByType[type.value] ?? []
-
-      if (!acc[type.category]) {
-        acc[type.category] = []
+  const monthlyUsage = monthlyExports.reduce(
+    (acc, supply) => {
+      if (!acc[supply.type]) {
+        acc[supply.type] = { quantity: 0, cost: 0 }
       }
 
-      if (stock > 0) {
-        acc[type.category].push({
-          ...type,
-          stock,
-          lots,
-        })
-      }
+      const fifoCost = fullInventorySnapshot.exportCostsById[supply.id]?.totalCost ?? supply.total_price
 
+      acc[supply.type].quantity += supply.quantity
+      acc[supply.type].cost += fifoCost
       return acc
     },
-    {} as Record<
-      string,
-      Array<{
-        value: string
-        label: string
-        category: string
-        stock: number
-        lots: ReturnType<typeof buildSupplyInventorySnapshot>["lotsByType"][string]
-      }>
-    >,
+    {} as Record<string, { quantity: number; cost: number }>,
+  )
+
+  const monthlyUsageTotal = Object.values(monthlyUsage).reduce((sum, item) => sum + item.cost, 0)
+
+  const monthlyUsageEntries = Object.entries(monthlyUsage)
+    .map(([type, data]) => ({
+      type,
+      label: getSupplyLabel(type),
+      quantity: data.quantity,
+      cost: data.cost,
+      share: monthlyUsageTotal > 0 ? (data.cost / monthlyUsageTotal) * 100 : 0,
+    }))
+    .sort((left, right) => right.cost - left.cost)
+
+  const monthlyUsageCost = monthlyUsageEntries.reduce((sum, item) => sum + item.cost, 0)
+
+  const periodInventoryItems = supplyTypes
+    .map((type) => {
+      const stock = periodInventorySnapshot.stockByType[type.value] || 0
+      const lots = periodInventorySnapshot.lotsByType[type.value] ?? []
+      const inventoryValue = lots.reduce((sum, lot) => sum + lot.remainingQuantity * lot.unitPrice, 0)
+
+      return {
+        ...type,
+        stock,
+        lots,
+        inventoryValue,
+        oldestLotDate: lots[0]?.date ?? null,
+      }
+    })
+    .filter((item) => item.stock > 0)
+
+  const inventoryValue = periodInventoryItems.reduce((sum, item) => sum + item.inventoryValue, 0)
+  const lowStockItems = periodInventoryItems
+    .filter((item) => item.stock <= LOW_STOCK_THRESHOLD)
+    .sort((left, right) => left.stock - right.stock || left.label.localeCompare(right.label))
+
+  const groupedInventory = periodInventoryItems.reduce(
+    (acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = []
+      }
+
+      acc[item.category].push(item)
+      return acc
+    },
+    {} as Record<string, typeof periodInventoryItems>,
   )
 
   const groupedOptions = supplyTypes.reduce(
@@ -289,6 +308,8 @@ export function SupplyDashboard() {
     },
     {} as Record<string, Array<{ value: string; label: string; category: string; stock: number }>>,
   )
+
+  const periodLabel = `${months[selectedMonth - 1]?.label ?? `Tháng ${selectedMonth}`}/${selectedYear}`
 
   return (
     <div className="dashboard-page">
@@ -501,19 +522,124 @@ export function SupplyDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <Card className="dashboard-metric">
-          <CardHeader>
-            <CardTitle>Chi Phí Vật Tư Tháng</CardTitle>
-            <CardDescription>
-              Tháng {selectedMonth}/{selectedYear}
-            </CardDescription>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="dashboard-metric border-sky-100/80 bg-[linear-gradient(180deg,rgba(239,246,255,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
+          <CardHeader className="p-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base text-sky-700">Nhập kho tháng</CardTitle>
+              <Boxes className="size-4 text-sky-500" />
+            </div>
+            <CardDescription>{periodLabel}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">{formatCurrency(monthlyExpenses)}</div>
+          <CardContent className="p-0 pt-4">
+            <div className="text-3xl font-bold text-sky-600">{formatCurrency(monthlyImportValue)}</div>
+            <p className="mt-2 text-sm text-sky-500">
+              {formatQuantity(monthlyImportQuantity)} sản phẩm, {monthlyImports.length} lượt nhập
+            </p>
           </CardContent>
         </Card>
 
+        <Card className="dashboard-metric border-amber-100/80 bg-[linear-gradient(180deg,rgba(255,247,237,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
+          <CardHeader className="p-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base text-amber-700">Xuất dùng tháng</CardTitle>
+              <TrendingDown className="size-4 text-amber-500" />
+            </div>
+            <CardDescription>{periodLabel}</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 pt-4">
+            <div className="text-3xl font-bold text-amber-600">{formatCurrency(monthlyUsageCost)}</div>
+            <p className="mt-2 text-sm text-amber-500">
+              {formatQuantity(monthlyExportQuantity)} sản phẩm, {monthlyExports.length} lượt xuất
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="dashboard-metric border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
+          <CardHeader className="p-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base text-emerald-700">Giá trị tồn cuối kỳ</CardTitle>
+              <Archive className="size-4 text-emerald-500" />
+            </div>
+            <CardDescription>Chốt tới {new Date(periodEndDate).toLocaleDateString("vi-VN")}</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 pt-4">
+            <div className="text-3xl font-bold text-emerald-600">{formatCurrency(inventoryValue)}</div>
+            <p className="mt-2 text-sm text-emerald-500">{periodInventoryItems.length} mặt hàng còn tồn</p>
+          </CardContent>
+        </Card>
+
+        <Card className="dashboard-metric border-rose-100/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
+          <CardHeader className="p-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base text-rose-700">Sắp hết hàng</CardTitle>
+              <TriangleAlert className="size-4 text-rose-500" />
+            </div>
+            <CardDescription>Ngưỡng cảnh báo ≤ {LOW_STOCK_THRESHOLD} sản phẩm</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 pt-4">
+            <div className="text-3xl font-bold text-rose-600">{lowStockItems.length}</div>
+            <p className="mt-2 text-sm text-rose-500">
+              {lowStockItems.length === 0 ? "Tồn kho đang an toàn" : "Nên chuẩn bị nhập thêm trong kỳ tới"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card
+        className={
+          lowStockItems.length > 0
+            ? "dashboard-panel border-rose-100/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.72)_0%,rgba(255,255,255,0.95)_100%)]"
+            : "dashboard-panel border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.72)_0%,rgba(255,255,255,0.95)_100%)]"
+        }
+      >
+        <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
+          <CardTitle className={lowStockItems.length > 0 ? "text-rose-700" : "text-emerald-700"}>
+            {lowStockItems.length > 0 ? "Cần nhập lại sớm" : "Tồn kho đang ổn định"}
+          </CardTitle>
+          <CardDescription>
+            {lowStockItems.length > 0
+              ? "Các mặt hàng cuối kỳ đang xuống thấp và nên theo dõi để không thiếu hàng."
+              : "Chưa có mặt hàng nào chạm ngưỡng cảnh báo trong kỳ này."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
+          {lowStockItems.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {lowStockItems.map((item) => (
+                <div key={item.value} className="rounded-[1.2rem] border border-white/80 bg-white/92 p-4 shadow-soft">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-800">{item.label}</p>
+                      <p className="mt-1 text-sm text-slate-500">{item.category}</p>
+                    </div>
+                    <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-600">
+                      {formatQuantity(item.stock)}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1 text-sm text-slate-500">
+                    <p>Giá trị tồn: {formatCurrency(item.inventoryValue)}</p>
+                    <p>
+                      Lô còn cũ nhất:{" "}
+                      {item.oldestLotDate ? new Date(item.oldestLotDate).toLocaleDateString("vi-VN") : "Chưa có"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="dashboard-empty py-8">
+              <Archive className="size-6 text-emerald-500" />
+              <div className="space-y-1">
+                <p className="text-lg font-semibold text-slate-700">Không có mã nào sắp hết</p>
+                <p className="text-sm text-slate-500">Bạn có thể tiếp tục theo dõi theo lô mà chưa cần nhập bổ sung.</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <Card className="dashboard-panel">
           <CardHeader>
             <CardTitle>Tồn Theo Lô Cuối Kỳ</CardTitle>
@@ -547,6 +673,9 @@ export function SupplyDashboard() {
                               <p className="font-semibold text-slate-800">{item.label}</p>
                               <p className="mt-1 text-sm text-slate-500">
                                 Còn {formatQuantity(item.stock)} sản phẩm ở cuối kỳ
+                              </p>
+                              <p className="mt-1 text-xs font-medium text-slate-400">
+                                Giá trị tồn: {formatCurrency(item.inventoryValue)}
                               </p>
                             </div>
                             <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-emerald-600 shadow-xs">
@@ -586,22 +715,35 @@ export function SupplyDashboard() {
       </div>
 
       <Card className="dashboard-panel">
-        <CardHeader>
+        <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
           <CardTitle>Sử Dụng Vật Tư Trong Tháng</CardTitle>
+          <CardDescription>{periodLabel}</CardDescription>
         </CardHeader>
-        <CardContent>
-          {Object.keys(monthlyUsage).length === 0 ? (
-            <p className="text-muted-foreground">Chưa có dữ liệu sử dụng trong tháng này</p>
+        <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
+          {monthlyUsageEntries.length === 0 ? (
+            <div className="dashboard-empty py-10">
+              <TrendingDown className="size-6 text-slate-400" />
+              <div className="space-y-1">
+                <p className="text-lg font-semibold text-slate-700">Chưa có dữ liệu sử dụng</p>
+                <p className="text-sm text-slate-500">{periodLabel}</p>
+              </div>
+            </div>
           ) : (
-            <div className="space-y-4">
-              {Object.entries(monthlyUsage).map(([type, data]) => (
-                <div key={type} className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                  <div>
-                    <p className="font-medium text-slate-700">{getSupplyLabel(type)}</p>
-                    <p className="text-sm text-muted-foreground">Đã sử dụng: {formatQuantity(data.quantity)}</p>
+            <div className="space-y-3">
+              {monthlyUsageEntries.map((item) => (
+                <div key={item.type} className="rounded-[1.2rem] border border-slate-200/80 bg-slate-50/88 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-700">{item.label}</p>
+                      <p className="mt-1 text-sm text-slate-500">Đã sử dụng: {formatQuantity(item.quantity)} sản phẩm</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-rose-600">{formatCurrency(item.cost)}</p>
+                      <p className="mt-1 text-xs font-medium text-slate-400">{item.share.toFixed(0)}% chi phí vật tư</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-red-600">{formatCurrency(data.cost)}</p>
+                  <div className="mt-3 h-2 rounded-full bg-white">
+                    <div className="h-full rounded-full bg-gradient-to-r from-rose-500 to-orange-400" style={{ width: `${Math.max(item.share, 6)}%` }} />
                   </div>
                 </div>
               ))}
