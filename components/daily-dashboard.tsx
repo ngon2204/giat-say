@@ -160,6 +160,7 @@ export function DailyDashboard() {
   const [newOrder, setNewOrder] = useState(defaultOrderForm)
   const customerNameInputRef = useRef<HTMLInputElement>(null)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const isStoppingRecognitionRef = useRef(false)
   const speechBaseTextRef = useRef("")
   const { toast } = useToast()
 
@@ -184,9 +185,7 @@ export function DailyDashboard() {
 
   useEffect(() => {
     if (isDialogOpen || !recognitionRef.current) return
-    recognitionRef.current.abort()
-    recognitionRef.current = null
-    setIsListening(false)
+    abortRecognition()
   }, [isDialogOpen])
 
   const fetchOrders = async () => {
@@ -357,8 +356,34 @@ export function DailyDashboard() {
     }
   }
 
+  const abortRecognition = () => {
+    const recognition = recognitionRef.current
+
+    if (!recognition) {
+      setIsListening(false)
+      isStoppingRecognitionRef.current = false
+      return
+    }
+
+    recognitionRef.current = null
+    recognition.onresult = null
+    recognition.onerror = null
+    recognition.onend = null
+    setIsListening(false)
+
+    try {
+      recognition.abort()
+    } catch {
+      // Safari may throw if the recognition session already ended.
+    }
+  }
+
   const stopListening = () => {
-    recognitionRef.current?.stop()
+    isStoppingRecognitionRef.current = true
+    abortRecognition()
+    window.setTimeout(() => {
+      isStoppingRecognitionRef.current = false
+    }, 0)
   }
 
   const startListening = () => {
@@ -373,7 +398,8 @@ export function DailyDashboard() {
       return
     }
 
-    recognitionRef.current?.abort()
+    abortRecognition()
+    isStoppingRecognitionRef.current = false
 
     const recognition = new SpeechRecognitionCtor()
     const baseText = quickInput.trim()
@@ -397,7 +423,15 @@ export function DailyDashboard() {
     }
 
     recognition.onerror = (event) => {
+      const wasManualStop = isStoppingRecognitionRef.current || event.error === "aborted"
+
+      recognitionRef.current = null
       setIsListening(false)
+      isStoppingRecognitionRef.current = false
+
+      if (wasManualStop) {
+        return
+      }
 
       if (event.error === "not-allowed") {
         toast({
@@ -416,8 +450,9 @@ export function DailyDashboard() {
     }
 
     recognition.onend = () => {
-      setIsListening(false)
       recognitionRef.current = null
+      setIsListening(false)
+      isStoppingRecognitionRef.current = false
     }
 
     recognitionRef.current = recognition
@@ -665,14 +700,6 @@ export function DailyDashboard() {
                           <SelectItem value="transfer">Chuyển khoản</SelectItem>
                         </SelectContent>
                       </Select>
-
-                      <div className="mt-4 rounded-[1.1rem] border border-slate-200/80 bg-slate-50/90 p-3 sm:p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Cú pháp</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          Ví dụ: <span className="font-semibold">khang 45, tuấn 50, trang 70</span>
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">Số dưới 1000 sẽ hiểu là nghìn đồng.</p>
-                      </div>
                     </div>
                   </div>
 
@@ -703,7 +730,7 @@ export function DailyDashboard() {
                         id="quick-entry"
                         value={quickInput}
                         onChange={(event) => setQuickInput(event.target.value)}
-                        placeholder="khang 45, tuấn 50, trang 70"
+                        placeholder=""
                         className="mt-2 min-h-24 w-full rounded-[1.1rem] border border-slate-200/80 bg-white/92 px-4 py-3 text-sm text-slate-700 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-primary/40 focus:ring-[4px] focus:ring-primary/20 sm:min-h-28"
                       />
                     </div>
@@ -726,9 +753,7 @@ export function DailyDashboard() {
                     </div>
 
                     {quickOrderPreview.valid.length === 0 && quickOrderPreview.invalid.length === 0 ? (
-                      <p className="mt-3 text-sm text-slate-500">
-                        Chưa có dữ liệu. Hãy nói hoặc nhập theo mẫu để app tự tách danh sách.
-                      </p>
+                      <p className="mt-3 text-sm text-slate-500">Chưa có dữ liệu.</p>
                     ) : (
                       <div className="mt-4 space-y-3">
                         {quickOrderPreview.valid.map((item) => (
