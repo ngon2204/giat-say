@@ -481,12 +481,12 @@ export function DailyDashboard() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl rounded-[1.9rem] p-0">
-            <DialogHeader className="px-6 pt-6">
+          <DialogContent className="!top-[calc(env(safe-area-inset-top)_+_0.75rem)] !translate-y-0 flex max-h-[calc(100dvh_-_env(safe-area-inset-top)_-_0.75rem)] w-[calc(100vw_-_1rem)] max-w-2xl flex-col overflow-hidden rounded-[1.9rem] p-0 sm:!top-[50%] sm:!max-h-[min(90dvh,56rem)] sm:!translate-y-[-50%] sm:w-[min(calc(100vw_-_3rem),42rem)]">
+            <DialogHeader className="shrink-0 border-b border-slate-100/90 bg-white/96 px-4 pb-4 pt-5 pr-14 backdrop-blur sm:px-6 sm:pb-4 sm:pt-6">
               <DialogTitle>Đơn mới</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-5 px-6 pb-6">
+            <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] pt-4 [-webkit-overflow-scrolling:touch] sm:space-y-5 sm:px-6 sm:pb-6 sm:pt-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Button
                   variant={entryMode === "single" ? "default" : "outline"}
@@ -666,7 +666,7 @@ export function DailyDashboard() {
                         </SelectContent>
                       </Select>
 
-                      <div className="mt-4 rounded-[1.1rem] border border-slate-200/80 bg-slate-50/90 p-3">
+                      <div className="mt-4 rounded-[1.1rem] border border-slate-200/80 bg-slate-50/90 p-3 sm:p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Cú pháp</p>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
                           Ví dụ: <span className="font-semibold">khang 45, tuấn 50, trang 70</span>
@@ -676,7 +676,7 @@ export function DailyDashboard() {
                     </div>
                   </div>
 
-                  <div className="rounded-[1.4rem] border border-slate-200/80 bg-slate-50/85 p-4">
+                  <div className="rounded-[1.4rem] border border-slate-200/80 bg-slate-50/85 p-3.5 sm:p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-slate-700">Nhập nhanh bằng giọng nói hoặc văn bản</p>
@@ -704,7 +704,7 @@ export function DailyDashboard() {
                         value={quickInput}
                         onChange={(event) => setQuickInput(event.target.value)}
                         placeholder="khang 45, tuấn 50, trang 70"
-                        className="mt-2 min-h-28 w-full rounded-[1.1rem] border border-slate-200/80 bg-white/92 px-4 py-3 text-sm text-slate-700 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-primary/40 focus:ring-[4px] focus:ring-primary/20"
+                        className="mt-2 min-h-24 w-full rounded-[1.1rem] border border-slate-200/80 bg-white/92 px-4 py-3 text-sm text-slate-700 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-primary/40 focus:ring-[4px] focus:ring-primary/20 sm:min-h-28"
                       />
                     </div>
 
@@ -719,7 +719,7 @@ export function DailyDashboard() {
                     )}
                   </div>
 
-                  <div className="rounded-[1.4rem] border border-slate-200/80 bg-white/92 p-4">
+                  <div className="rounded-[1.4rem] border border-slate-200/80 bg-white/92 p-3.5 sm:p-4">
                     <div className="flex items-center gap-2">
                       <Sparkles className="size-4 text-indigo-500" />
                       <p className="text-sm font-semibold text-slate-700">Xem trước danh sách đơn</p>
