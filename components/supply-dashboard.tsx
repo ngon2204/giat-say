@@ -516,7 +516,7 @@ export function SupplyDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="dashboard-metric border-sky-100/80 bg-[linear-gradient(180deg,rgba(239,246,255,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
           <CardHeader className="p-0">
             <div className="flex items-center justify-between">
@@ -565,7 +565,7 @@ export function SupplyDashboard() {
 
       </div>
 
-      <Card className="dashboard-panel">
+      <Card className="dashboard-panel w-full overflow-hidden">
         <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
           <CardTitle>Tồn Theo Lô Cuối Kỳ</CardTitle>
           <CardDescription>
@@ -590,7 +590,7 @@ export function SupplyDashboard() {
               {Object.entries(groupedInventory).map(([category, items]) => (
                 <section key={category} className="space-y-4">
                   <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">{category}</h4>
-                  <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                     {items.map((item) => (
                       <div key={item.value} className="rounded-[1.35rem] border border-slate-200/80 bg-slate-50/92 p-4 sm:p-5">
                         <div className="flex items-start justify-between gap-3">
@@ -645,7 +645,7 @@ export function SupplyDashboard() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {monthlyUsageEntries.map((item) => (
                 <div key={item.type} className="rounded-[1.2rem] border border-slate-200/80 bg-slate-50/88 p-4">
                   <div className="flex items-start justify-between gap-3">
