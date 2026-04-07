@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Banknote, CalendarDays, CreditCard, Phone, Plus, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 const capitalizeWords = (value: string) =>
   value
     .split(" ")
+    .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ")
 
@@ -43,18 +44,21 @@ const paymentClasses = {
   transfer: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
 } as const
 
+const defaultOrderForm = {
+  customerTitle: "Anh" as "Anh" | "Chị",
+  customerName: "",
+  phone: "",
+  services: ["clothes"] as string[],
+  amount: "",
+  paymentMethod: "cash" as "cash" | "transfer",
+}
+
 export function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [orders, setOrders] = useState<Order[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [newOrder, setNewOrder] = useState({
-    customerTitle: "Anh" as "Anh" | "Chị",
-    customerName: "",
-    phone: "",
-    services: ["clothes"] as string[],
-    amount: "",
-    paymentMethod: "cash" as "cash" | "transfer",
-  })
+  const [newOrder, setNewOrder] = useState(defaultOrderForm)
+  const customerNameInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -62,6 +66,18 @@ export function DailyDashboard() {
     const interval = setInterval(fetchOrders, 5000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      customerNameInputRef.current?.focus()
+    }, 50)
+
+    return () => window.clearTimeout(timer)
+  }, [isDialogOpen])
 
   const fetchOrders = async () => {
     const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false })
@@ -78,21 +94,44 @@ export function DailyDashboard() {
     setOrders(data || [])
   }
 
+  const focusCustomerName = () => {
+    window.setTimeout(() => {
+      customerNameInputRef.current?.focus()
+    }, 20)
+  }
+
+  const resetOrderForm = (mode: "close" | "continue") => {
+    if (mode === "continue") {
+      setNewOrder((previous) => ({
+        ...previous,
+        customerName: "",
+        phone: "",
+        amount: "",
+      }))
+      focusCustomerName()
+      return
+    }
+
+    setNewOrder(defaultOrderForm)
+    setIsDialogOpen(false)
+  }
+
   const handleAmountChange = (value: string) => {
     const cleanValue = value.replace(/\D/g, "")
-    const formatted = cleanValue ? Number.parseInt(cleanValue).toLocaleString("vi-VN") : ""
-    setNewOrder({ ...newOrder, amount: formatted })
+    const formatted = cleanValue ? Number.parseInt(cleanValue, 10).toLocaleString("vi-VN") : ""
+    setNewOrder((previous) => ({ ...previous, amount: formatted }))
   }
 
   const handleServiceChange = (serviceId: string, checked: boolean) => {
     const updatedServices = checked
       ? [...newOrder.services, serviceId]
       : newOrder.services.filter((id) => id !== serviceId)
-    setNewOrder({ ...newOrder, services: updatedServices })
+
+    setNewOrder((previous) => ({ ...previous, services: updatedServices }))
   }
 
-  const handleSubmit = async () => {
-    if (!newOrder.customerName || newOrder.services.length === 0) {
+  const handleSubmit = async (mode: "close" | "continue") => {
+    if (!newOrder.customerName.trim() || newOrder.services.length === 0) {
       toast({
         title: "Lỗi",
         description: "Vui lòng nhập đủ thông tin bắt buộc",
@@ -101,11 +140,11 @@ export function DailyDashboard() {
       return
     }
 
-    const rawAmount = Number.parseInt(newOrder.amount.replace(/\D/g, "")) || 0
+    const rawAmount = Number.parseInt(newOrder.amount.replace(/\D/g, ""), 10) || 0
     const order = {
       date: format(selectedDate, "yyyy-MM-dd"),
-      customer_name: `${newOrder.customerTitle} ${newOrder.customerName}`,
-      phone: newOrder.phone,
+      customer_name: `${newOrder.customerTitle} ${newOrder.customerName.trim()}`,
+      phone: newOrder.phone.trim(),
       services: newOrder.services,
       weight: 0,
       amount: rawAmount * 1000,
@@ -126,18 +165,10 @@ export function DailyDashboard() {
     }
 
     await fetchOrders()
-    setNewOrder({
-      customerTitle: "Anh",
-      customerName: "",
-      phone: "",
-      services: ["clothes"],
-      amount: "",
-      paymentMethod: "cash",
-    })
-    setIsDialogOpen(false)
+    resetOrderForm(mode)
 
     toast({
-      title: "Đã thêm đơn",
+      title: mode === "continue" ? "Đã lưu, tiếp tục nhập" : "Đã thêm đơn",
       description: `Khách hàng ${order.customer_name}`,
     })
   }
@@ -181,7 +212,7 @@ export function DailyDashboard() {
               value={currentDate}
               onChange={(event) => {
                 const nextDate = new Date(event.target.value)
-                if (!isNaN(nextDate.getTime())) {
+                if (!Number.isNaN(nextDate.getTime())) {
                   setSelectedDate(nextDate)
                 }
               }}
@@ -209,7 +240,9 @@ export function DailyDashboard() {
                   <Label>Xưng hô</Label>
                   <Select
                     value={newOrder.customerTitle}
-                    onValueChange={(value: "Anh" | "Chị") => setNewOrder({ ...newOrder, customerTitle: value })}
+                    onValueChange={(value: "Anh" | "Chị") =>
+                      setNewOrder((previous) => ({ ...previous, customerTitle: value }))
+                    }
                   >
                     <SelectTrigger className="dashboard-control mt-2 w-full">
                       <SelectValue />
@@ -222,13 +255,55 @@ export function DailyDashboard() {
                 </div>
 
                 <div>
-                  <Label>Tên khách</Label>
+                  <Label htmlFor="customer-name">Tên khách</Label>
                   <Input
+                    id="customer-name"
+                    ref={customerNameInputRef}
                     className="dashboard-control mt-2"
                     placeholder="Nhập tên"
                     value={newOrder.customerName}
-                    onChange={(event) => setNewOrder({ ...newOrder, customerName: event.target.value })}
+                    onChange={(event) =>
+                      setNewOrder((previous) => ({ ...previous, customerName: event.target.value }))
+                    }
                   />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_210px]">
+                <div>
+                  <Label htmlFor="amount">Số tiền</Label>
+                  <Input
+                    id="amount"
+                    inputMode="numeric"
+                    className="dashboard-control mt-2"
+                    value={newOrder.amount}
+                    onChange={(event) => handleAmountChange(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault()
+                        void handleSubmit("continue")
+                      }
+                    }}
+                    placeholder="Ví dụ 200"
+                  />
+                </div>
+
+                <div>
+                  <Label>Thanh toán</Label>
+                  <Select
+                    value={newOrder.paymentMethod}
+                    onValueChange={(value: "cash" | "transfer") =>
+                      setNewOrder((previous) => ({ ...previous, paymentMethod: value }))
+                    }
+                  >
+                    <SelectTrigger className="dashboard-control mt-2 w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Tiền mặt</SelectItem>
+                      <SelectItem value="transfer">Chuyển khoản</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -240,7 +315,8 @@ export function DailyDashboard() {
                   inputMode="tel"
                   className="dashboard-control mt-2"
                   value={newOrder.phone}
-                  onChange={(event) => setNewOrder({ ...newOrder, phone: event.target.value })}
+                  onChange={(event) => setNewOrder((previous) => ({ ...previous, phone: event.target.value }))}
+                  placeholder="Có thể để trống nếu chưa cần"
                 />
               </div>
 
@@ -267,37 +343,14 @@ export function DailyDashboard() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="amount">Số tiền</Label>
-                <Input
-                  id="amount"
-                  inputMode="numeric"
-                  className="dashboard-control mt-2"
-                  value={newOrder.amount}
-                  onChange={(event) => handleAmountChange(event.target.value)}
-                  placeholder="Ví dụ 200"
-                />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Button variant="outline" className="h-12" onClick={() => void handleSubmit("continue")}>
+                  Lưu và thêm tiếp
+                </Button>
+                <Button className="dashboard-primary-button w-full" onClick={() => void handleSubmit("close")}>
+                  Lưu đơn
+                </Button>
               </div>
-
-              <div>
-                <Label>Thanh toán</Label>
-                <Select
-                  value={newOrder.paymentMethod}
-                  onValueChange={(value: "cash" | "transfer") => setNewOrder({ ...newOrder, paymentMethod: value })}
-                >
-                  <SelectTrigger className="dashboard-control mt-2 w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Tiền mặt</SelectItem>
-                    <SelectItem value="transfer">Chuyển khoản</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button onClick={handleSubmit} className="dashboard-primary-button w-full">
-                Lưu đơn
-              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -332,7 +385,7 @@ export function DailyDashboard() {
       </div>
 
       <Card className="dashboard-panel">
-        <CardHeader className="flex flex-row items-center justify-between gap-3 px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 px-5 pb-0 pt-5 sm:px-6 sm:pt-6">
           <CardTitle className="text-xl text-slate-700">Đơn trong ngày</CardTitle>
           <Badge className="rounded-full bg-slate-100 px-3 py-1 text-slate-500 hover:bg-slate-100">
             {todayOrders.length} đơn
@@ -372,12 +425,12 @@ export function DailyDashboard() {
                         </Badge>
                       </div>
 
-                      {order.phone && (
+                      {order.phone ? (
                         <div className="flex items-center gap-2 text-sm text-slate-500">
                           <Phone className="size-3.5" />
                           <span>{order.phone}</span>
                         </div>
-                      )}
+                      ) : null}
 
                       <div className="flex flex-wrap gap-2">
                         {services.map((service) => (
