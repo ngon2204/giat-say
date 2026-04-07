@@ -503,7 +503,7 @@ export function DailyDashboard() {
                   setSelectedDate(nextDate)
                 }
               }}
-              className="h-full border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+              className="h-full border-0 bg-transparent px-0 text-base font-medium shadow-none focus-visible:ring-0 md:text-sm"
             />
           </div>
         </div>
@@ -731,7 +731,7 @@ export function DailyDashboard() {
                         value={quickInput}
                         onChange={(event) => setQuickInput(event.target.value)}
                         placeholder=""
-                        className="mt-2 min-h-24 w-full rounded-[1.1rem] border border-slate-200/80 bg-white/92 px-4 py-3 text-sm text-slate-700 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-primary/40 focus:ring-[4px] focus:ring-primary/20 sm:min-h-28"
+                        className="mt-2 min-h-24 w-full rounded-[1.1rem] border border-slate-200/80 bg-white/92 px-4 py-3 text-base text-slate-700 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-primary/40 focus:ring-[4px] focus:ring-primary/20 md:text-sm sm:min-h-28"
                       />
                     </div>
 
