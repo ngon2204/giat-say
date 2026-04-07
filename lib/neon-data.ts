@@ -68,6 +68,72 @@ export async function createOrder(order: NewOrder) {
   return result.rows[0]
 }
 
+export async function createOrders(orders: NewOrder[]) {
+  if (orders.length === 0) {
+    return []
+  }
+
+  const client = await neonPool.connect()
+
+  try {
+    await client.query("BEGIN")
+
+    const createdOrders: Order[] = []
+
+    for (const order of orders) {
+      const result = await client.query<Order>(
+        `
+          INSERT INTO orders (
+            date,
+            customer_name,
+            phone,
+            services,
+            weight,
+            amount,
+            note,
+            status,
+            payment_method
+          )
+          VALUES ($1, $2, $3, $4::text[], $5, $6, $7, $8, $9)
+          RETURNING
+            id,
+            TO_CHAR(date, 'YYYY-MM-DD') AS date,
+            customer_name,
+            phone,
+            services,
+            weight,
+            amount,
+            COALESCE(note, '') AS note,
+            status,
+            payment_method,
+            created_at
+        `,
+        [
+          order.date,
+          order.customer_name,
+          order.phone,
+          order.services,
+          order.weight,
+          order.amount,
+          order.note,
+          order.status,
+          order.payment_method,
+        ],
+      )
+
+      createdOrders.push(result.rows[0])
+    }
+
+    await client.query("COMMIT")
+    return createdOrders
+  } catch (error) {
+    await client.query("ROLLBACK")
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export async function deleteOrder(id: string) {
   await neonPool.query("DELETE FROM orders WHERE id = $1", [id])
 }

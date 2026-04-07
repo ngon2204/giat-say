@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { createOrder, listOrders } from "@/lib/neon-data"
+import { createOrder, createOrders, listOrders } from "@/lib/neon-data"
 import type { NewOrder } from "@/lib/types"
 
 export const runtime = "nodejs"
@@ -20,7 +20,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as NewOrder
+    const payload = (await request.json()) as NewOrder | NewOrder[]
+
+    if (Array.isArray(payload)) {
+      const orders = await createOrders(payload)
+      return NextResponse.json(orders, { status: 201 })
+    }
+
     const order = await createOrder(payload)
     return NextResponse.json(order, { status: 201 })
   } catch (error) {

@@ -1,7 +1,17 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { Banknote, CalendarDays, CreditCard, Phone, Plus, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  Banknote,
+  CalendarDays,
+  CreditCard,
+  Mic,
+  Phone,
+  Plus,
+  Sparkles,
+  Square,
+  Trash2,
+} from "lucide-react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 
@@ -14,15 +24,51 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { supabase, type Order } from "@/lib/supabase"
+import { supabase, type NewOrder, type Order } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
-const capitalizeWords = (value: string) =>
-  value
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ")
+type EntryMode = "single" | "quick"
+type SpeechRecognitionErrorEventLike = Event & { error?: string }
+type SpeechRecognitionAlternativeLike = { transcript: string }
+type SpeechRecognitionResultLike = {
+  readonly isFinal: boolean
+  readonly length: number
+  [index: number]: SpeechRecognitionAlternativeLike
+}
+type SpeechRecognitionResultListLike = {
+  readonly length: number
+  [index: number]: SpeechRecognitionResultLike
+}
+type SpeechRecognitionEventLike = Event & {
+  readonly results: SpeechRecognitionResultListLike
+}
+type SpeechRecognitionLike = EventTarget & {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  maxAlternatives: number
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+  abort: () => void
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
+  }
+}
+
+interface QuickOrderDraft {
+  index: number
+  raw: string
+  customerName: string
+  amount: number
+}
 
 const serviceOptions = [
   { id: "clothes", label: "Quần áo" },
@@ -53,12 +99,68 @@ const defaultOrderForm = {
   paymentMethod: "cash" as "cash" | "transfer",
 }
 
+const capitalizeWords = (value: string) =>
+  value
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ")
+
+function parseSpokenAmount(rawAmount: string, rawUnit?: string) {
+  const numeric = Number.parseFloat(rawAmount.replace(/\s+/g, "").replace(/,/g, "."))
+  if (!Number.isFinite(numeric)) return null
+  const amount = rawUnit || numeric < 1000 ? Math.round(numeric * 1000) : Math.round(numeric)
+  return amount > 0 ? amount : null
+}
+
+function parseQuickOrders(value: string) {
+  const valid: QuickOrderDraft[] = []
+  const invalid: string[] = []
+
+  value
+    .split(/[\n,;]+/g)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .forEach((entry, index) => {
+      const match = entry.replace(/[.]+$/g, "").trim().match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(k|nghìn|nghin|ngàn|ngan)?$/i)
+
+      if (!match) {
+        invalid.push(entry)
+        return
+      }
+
+      const [, rawName, rawAmount, rawUnit] = match
+      const amount = parseSpokenAmount(rawAmount, rawUnit)
+      const customerName = capitalizeWords(rawName.trim())
+
+      if (!amount || !customerName) {
+        invalid.push(entry)
+        return
+      }
+
+      valid.push({
+        index: index + 1,
+        raw: entry,
+        customerName,
+        amount,
+      })
+    })
+
+  return { valid, invalid }
+}
+
 export function DailyDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [orders, setOrders] = useState<Order[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [entryMode, setEntryMode] = useState<EntryMode>("single")
+  const [quickInput, setQuickInput] = useState("")
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
   const [newOrder, setNewOrder] = useState(defaultOrderForm)
   const customerNameInputRef = useRef<HTMLInputElement>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const speechBaseTextRef = useRef("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -68,15 +170,23 @@ export function DailyDashboard() {
   }, [])
 
   useEffect(() => {
-    if (!isDialogOpen) {
-      return
+    if (typeof window !== "undefined") {
+      setSpeechSupported(Boolean(window.SpeechRecognition || window.webkitSpeechRecognition))
     }
+  }, [])
 
-    const timer = window.setTimeout(() => {
-      customerNameInputRef.current?.focus()
-    }, 50)
+  useEffect(() => {
+    if (!isDialogOpen || entryMode !== "single") return
 
+    const timer = window.setTimeout(() => customerNameInputRef.current?.focus(), 50)
     return () => window.clearTimeout(timer)
+  }, [entryMode, isDialogOpen])
+
+  useEffect(() => {
+    if (isDialogOpen || !recognitionRef.current) return
+    recognitionRef.current.abort()
+    recognitionRef.current = null
+    setIsListening(false)
   }, [isDialogOpen])
 
   const fetchOrders = async () => {
@@ -95,9 +205,7 @@ export function DailyDashboard() {
   }
 
   const focusCustomerName = () => {
-    window.setTimeout(() => {
-      customerNameInputRef.current?.focus()
-    }, 20)
+    window.setTimeout(() => customerNameInputRef.current?.focus(), 20)
   }
 
   const resetOrderForm = (mode: "close" | "continue") => {
@@ -113,6 +221,8 @@ export function DailyDashboard() {
     }
 
     setNewOrder(defaultOrderForm)
+    setQuickInput("")
+    setEntryMode("single")
     setIsDialogOpen(false)
   }
 
@@ -130,7 +240,7 @@ export function DailyDashboard() {
     setNewOrder((previous) => ({ ...previous, services: updatedServices }))
   }
 
-  const handleSubmit = async (mode: "close" | "continue") => {
+  const handleSingleSubmit = async (mode: "close" | "continue") => {
     if (!newOrder.customerName.trim() || newOrder.services.length === 0) {
       toast({
         title: "Lỗi",
@@ -171,6 +281,148 @@ export function DailyDashboard() {
       title: mode === "continue" ? "Đã lưu, tiếp tục nhập" : "Đã thêm đơn",
       description: `Khách hàng ${order.customer_name}`,
     })
+  }
+
+  const quickOrderPreview = useMemo(() => parseQuickOrders(quickInput), [quickInput])
+
+  const handleQuickSubmit = async () => {
+    if (newOrder.services.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Hãy chọn ít nhất một dịch vụ mặc định cho danh sách nhập nhanh",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (quickOrderPreview.valid.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Chưa có dòng hợp lệ để lưu",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (quickOrderPreview.invalid.length > 0) {
+      toast({
+        title: "Còn dòng chưa đúng",
+        description: "Sửa các dòng chưa nhận diện được trước khi lưu danh sách",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const ordersToCreate: NewOrder[] = quickOrderPreview.valid.map((item) => ({
+      date: format(selectedDate, "yyyy-MM-dd"),
+      customer_name: item.customerName,
+      phone: "",
+      services: newOrder.services,
+      weight: 0,
+      amount: item.amount,
+      note: "",
+      status: "completed",
+      payment_method: newOrder.paymentMethod,
+    }))
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(ordersToCreate),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? "Không thể lưu danh sách đơn")
+      }
+
+      await fetchOrders()
+      setQuickInput("")
+      setEntryMode("single")
+      setIsDialogOpen(false)
+
+      toast({
+        title: "Đã lưu danh sách",
+        description: `${ordersToCreate.length} đơn đã được tạo từ nhập nhanh`,
+      })
+    } catch (error) {
+      toast({
+        title: "Lỗi",
+        description: error instanceof Error ? error.message : "Không thể lưu danh sách đơn",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const stopListening = () => {
+    recognitionRef.current?.stop()
+  }
+
+  const startListening = () => {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition
+
+    if (!SpeechRecognitionCtor) {
+      toast({
+        title: "Trình duyệt chưa hỗ trợ",
+        description: "Bạn vẫn có thể dán chuỗi kiểu 'khang 45, tuấn 50, trang 70' vào ô nhập nhanh.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    recognitionRef.current?.abort()
+
+    const recognition = new SpeechRecognitionCtor()
+    const baseText = quickInput.trim()
+    const prefix = baseText ? `${baseText}${/[,\n;]$/.test(baseText) ? " " : ", "}` : ""
+
+    speechBaseTextRef.current = prefix
+    recognition.lang = "vi-VN"
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.maxAlternatives = 1
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(
+        { length: event.results.length },
+        (_, index) => event.results[index]?.[0]?.transcript ?? "",
+      )
+        .join(" ")
+        .trim()
+
+      setQuickInput(`${speechBaseTextRef.current}${transcript}`.trim())
+    }
+
+    recognition.onerror = (event) => {
+      setIsListening(false)
+
+      if (event.error === "not-allowed") {
+        toast({
+          title: "Chưa có quyền micro",
+          description: "Hãy cho phép microphone trong Safari rồi thử lại.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Không nghe được giọng nói",
+        description: "Bạn có thể bấm lại micro hoặc dán nội dung vào ô nhập nhanh.",
+        variant: "destructive",
+      })
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+      recognitionRef.current = null
+    }
+
+    recognitionRef.current = recognition
+    setIsListening(true)
+    recognition.start()
   }
 
   const handleDeleteOrder = async (orderId: string, customerName: string) => {
@@ -229,128 +481,297 @@ export function DailyDashboard() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="w-[calc(100vw-1.5rem)] max-w-lg rounded-[1.9rem] p-0">
+          <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl rounded-[1.9rem] p-0">
             <DialogHeader className="px-6 pt-6">
               <DialogTitle>Đơn mới</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4 px-6 pb-6">
-              <div className="grid gap-4 sm:grid-cols-[96px_minmax(0,1fr)]">
-                <div>
-                  <Label>Xưng hô</Label>
-                  <Select
-                    value={newOrder.customerTitle}
-                    onValueChange={(value: "Anh" | "Chị") =>
-                      setNewOrder((previous) => ({ ...previous, customerTitle: value }))
-                    }
-                  >
-                    <SelectTrigger className="dashboard-control mt-2 w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Anh">Anh</SelectItem>
-                      <SelectItem value="Chị">Chị</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="customer-name">Tên khách</Label>
-                  <Input
-                    id="customer-name"
-                    ref={customerNameInputRef}
-                    className="dashboard-control mt-2"
-                    placeholder="Nhập tên"
-                    value={newOrder.customerName}
-                    onChange={(event) =>
-                      setNewOrder((previous) => ({ ...previous, customerName: event.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_210px]">
-                <div>
-                  <Label htmlFor="amount">Số tiền</Label>
-                  <Input
-                    id="amount"
-                    inputMode="numeric"
-                    className="dashboard-control mt-2"
-                    value={newOrder.amount}
-                    onChange={(event) => handleAmountChange(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault()
-                        void handleSubmit("continue")
-                      }
-                    }}
-                    placeholder="Ví dụ 200"
-                  />
-                </div>
-
-                <div>
-                  <Label>Thanh toán</Label>
-                  <Select
-                    value={newOrder.paymentMethod}
-                    onValueChange={(value: "cash" | "transfer") =>
-                      setNewOrder((previous) => ({ ...previous, paymentMethod: value }))
-                    }
-                  >
-                    <SelectTrigger className="dashboard-control mt-2 w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Tiền mặt</SelectItem>
-                      <SelectItem value="transfer">Chuyển khoản</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="phone">Số điện thoại</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  inputMode="tel"
-                  className="dashboard-control mt-2"
-                  value={newOrder.phone}
-                  onChange={(event) => setNewOrder((previous) => ({ ...previous, phone: event.target.value }))}
-                  placeholder="Có thể để trống nếu chưa cần"
-                />
-              </div>
-
-              <div>
-                <Label>Dịch vụ</Label>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {serviceOptions.map((service) => (
-                    <button
-                      key={service.id}
-                      type="button"
-                      className="flex items-center gap-2 rounded-[1rem] border border-slate-200/75 bg-slate-50/90 px-3 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-xs"
-                      onClick={() => handleServiceChange(service.id, !newOrder.services.includes(service.id))}
-                    >
-                      <Checkbox
-                        id={service.id}
-                        checked={newOrder.services.includes(service.id)}
-                        onCheckedChange={(checked) => handleServiceChange(service.id, checked as boolean)}
-                      />
-                      <Label htmlFor={service.id} className="cursor-pointer">
-                        {service.label}
-                      </Label>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+            <div className="space-y-5 px-6 pb-6">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Button variant="outline" className="h-12" onClick={() => void handleSubmit("continue")}>
-                  Lưu và thêm tiếp
+                <Button
+                  variant={entryMode === "single" ? "default" : "outline"}
+                  className="h-11"
+                  onClick={() => setEntryMode("single")}
+                >
+                  Nhập từng đơn
                 </Button>
-                <Button className="dashboard-primary-button w-full" onClick={() => void handleSubmit("close")}>
-                  Lưu đơn
+                <Button
+                  variant={entryMode === "quick" ? "default" : "outline"}
+                  className="h-11"
+                  onClick={() => setEntryMode("quick")}
+                >
+                  Nhập nhanh / giọng nói
                 </Button>
               </div>
+
+              {entryMode === "single" ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-[96px_minmax(0,1fr)]">
+                    <div>
+                      <Label>Xưng hô</Label>
+                      <Select
+                        value={newOrder.customerTitle}
+                        onValueChange={(value: "Anh" | "Chị") =>
+                          setNewOrder((previous) => ({ ...previous, customerTitle: value }))
+                        }
+                      >
+                        <SelectTrigger className="dashboard-control mt-2 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Anh">Anh</SelectItem>
+                          <SelectItem value="Chị">Chị</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="customer-name">Tên khách</Label>
+                      <Input
+                        id="customer-name"
+                        ref={customerNameInputRef}
+                        className="dashboard-control mt-2"
+                        placeholder="Nhập tên"
+                        value={newOrder.customerName}
+                        onChange={(event) =>
+                          setNewOrder((previous) => ({ ...previous, customerName: event.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_210px]">
+                    <div>
+                      <Label htmlFor="amount">Số tiền</Label>
+                      <Input
+                        id="amount"
+                        inputMode="numeric"
+                        className="dashboard-control mt-2"
+                        value={newOrder.amount}
+                        onChange={(event) => handleAmountChange(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault()
+                            void handleSingleSubmit("continue")
+                          }
+                        }}
+                        placeholder="Ví dụ 200"
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Thanh toán</Label>
+                      <Select
+                        value={newOrder.paymentMethod}
+                        onValueChange={(value: "cash" | "transfer") =>
+                          setNewOrder((previous) => ({ ...previous, paymentMethod: value }))
+                        }
+                      >
+                        <SelectTrigger className="dashboard-control mt-2 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Tiền mặt</SelectItem>
+                          <SelectItem value="transfer">Chuyển khoản</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone">Số điện thoại</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      inputMode="tel"
+                      className="dashboard-control mt-2"
+                      value={newOrder.phone}
+                      onChange={(event) => setNewOrder((previous) => ({ ...previous, phone: event.target.value }))}
+                      placeholder="Có thể để trống nếu chưa cần"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Dịch vụ</Label>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {serviceOptions.map((service) => (
+                        <button
+                          key={service.id}
+                          type="button"
+                          className="flex items-center gap-2 rounded-[1rem] border border-slate-200/75 bg-slate-50/90 px-3 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-xs"
+                          onClick={() => handleServiceChange(service.id, !newOrder.services.includes(service.id))}
+                        >
+                          <Checkbox
+                            id={service.id}
+                            checked={newOrder.services.includes(service.id)}
+                            onCheckedChange={(checked) => handleServiceChange(service.id, checked as boolean)}
+                          />
+                          <Label htmlFor={service.id} className="cursor-pointer">
+                            {service.label}
+                          </Label>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Button variant="outline" className="h-12" onClick={() => void handleSingleSubmit("continue")}>
+                      Lưu và thêm tiếp
+                    </Button>
+                    <Button className="dashboard-primary-button w-full" onClick={() => void handleSingleSubmit("close")}>
+                      Lưu đơn
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px]">
+                    <div>
+                      <Label>Dịch vụ mặc định</Label>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {serviceOptions.map((service) => (
+                          <button
+                            key={service.id}
+                            type="button"
+                            className="flex items-center gap-2 rounded-[1rem] border border-slate-200/75 bg-slate-50/90 px-3 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-xs"
+                            onClick={() => handleServiceChange(service.id, !newOrder.services.includes(service.id))}
+                          >
+                            <Checkbox
+                              id={`quick-${service.id}`}
+                              checked={newOrder.services.includes(service.id)}
+                              onCheckedChange={(checked) => handleServiceChange(service.id, checked as boolean)}
+                            />
+                            <Label htmlFor={`quick-${service.id}`} className="cursor-pointer">
+                              {service.label}
+                            </Label>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Thanh toán mặc định</Label>
+                      <Select
+                        value={newOrder.paymentMethod}
+                        onValueChange={(value: "cash" | "transfer") =>
+                          setNewOrder((previous) => ({ ...previous, paymentMethod: value }))
+                        }
+                      >
+                        <SelectTrigger className="dashboard-control mt-2 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Tiền mặt</SelectItem>
+                          <SelectItem value="transfer">Chuyển khoản</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      <div className="mt-4 rounded-[1.1rem] border border-slate-200/80 bg-slate-50/90 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Cú pháp</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          Ví dụ: <span className="font-semibold">khang 45, tuấn 50, trang 70</span>
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">Số dưới 1000 sẽ hiểu là nghìn đồng.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.4rem] border border-slate-200/80 bg-slate-50/85 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-700">Nhập nhanh bằng giọng nói hoặc văn bản</p>
+                        <p className="text-xs text-slate-500">
+                          App sẽ tự tách tên khách và số tiền thành từng đơn riêng.
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant={isListening ? "destructive" : "outline"}
+                        className="h-11 sm:w-auto"
+                        onClick={isListening ? stopListening : startListening}
+                        disabled={!speechSupported && !isListening}
+                      >
+                        {isListening ? <Square className="size-4" /> : <Mic className="size-4" />}
+                        {isListening ? "Dừng ghi âm" : "Bật micro"}
+                      </Button>
+                    </div>
+
+                    <div className="mt-4">
+                      <Label htmlFor="quick-entry">Danh sách đọc vào hoặc dán vào</Label>
+                      <textarea
+                        id="quick-entry"
+                        value={quickInput}
+                        onChange={(event) => setQuickInput(event.target.value)}
+                        placeholder="khang 45, tuấn 50, trang 70"
+                        className="mt-2 min-h-28 w-full rounded-[1.1rem] border border-slate-200/80 bg-white/92 px-4 py-3 text-sm text-slate-700 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-primary/40 focus:ring-[4px] focus:ring-primary/20"
+                      />
+                    </div>
+
+                    {speechSupported ? (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Nếu Safari hỏi quyền microphone, hãy bấm cho phép rồi đọc một câu liền mạch.
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs text-slate-500">
+                        Trình duyệt này không bật được micro, nhưng bạn vẫn có thể dán nội dung để app tự tách đơn.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-[1.4rem] border border-slate-200/80 bg-white/92 p-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="size-4 text-indigo-500" />
+                      <p className="text-sm font-semibold text-slate-700">Xem trước danh sách đơn</p>
+                    </div>
+
+                    {quickOrderPreview.valid.length === 0 && quickOrderPreview.invalid.length === 0 ? (
+                      <p className="mt-3 text-sm text-slate-500">
+                        Chưa có dữ liệu. Hãy nói hoặc nhập theo mẫu để app tự tách danh sách.
+                      </p>
+                    ) : (
+                      <div className="mt-4 space-y-3">
+                        {quickOrderPreview.valid.map((item) => (
+                          <div
+                            key={`${item.index}-${item.customerName}-${item.amount}`}
+                            className="flex items-center justify-between rounded-[1rem] border border-slate-200/80 bg-slate-50/80 px-4 py-3"
+                          >
+                            <div>
+                              <p className="font-semibold text-slate-700">
+                                Đơn {item.index}: {item.customerName}
+                              </p>
+                              <p className="text-xs text-slate-500">Đọc vào: {item.raw}</p>
+                            </div>
+                            <p className="text-base font-semibold text-emerald-600">
+                              {item.amount.toLocaleString("vi-VN")}đ
+                            </p>
+                          </div>
+                        ))}
+
+                        {quickOrderPreview.invalid.length > 0 ? (
+                          <div className="rounded-[1rem] border border-amber-100 bg-amber-50/90 px-4 py-3">
+                            <p className="text-sm font-semibold text-amber-700">Các dòng chưa nhận diện được</p>
+                            <div className="mt-2 space-y-1 text-sm text-amber-600">
+                              {quickOrderPreview.invalid.map((item, index) => (
+                                <p key={`${item}-${index}`}>- {item}</p>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Button variant="outline" className="h-12" onClick={() => setQuickInput("")}>
+                      Xóa nội dung
+                    </Button>
+                    <Button className="dashboard-primary-button w-full" onClick={handleQuickSubmit}>
+                      Lưu danh sách
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
