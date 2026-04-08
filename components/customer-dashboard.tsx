@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase, type Order } from "@/lib/supabase"
 
-const CUSTOMER_RESET_DATE = "2026-04-01"
+const CUSTOMER_RESET_DATE = "2026-01-01"
 
 interface CustomerInfo {
   name: string
@@ -104,7 +104,7 @@ export function CustomerDashboard() {
     <div className="dashboard-page">
       <div className="dashboard-toolbar">
         <Badge className="w-fit rounded-full bg-slate-100 px-3 py-1 text-slate-500 hover:bg-slate-100">
-          Từ 01/04/2026
+          Từ 01/01/2026
         </Badge>
 
         <div className="w-full md:w-[340px]">
@@ -230,7 +230,7 @@ export function CustomerDashboard() {
               </div>
               <div className="space-y-1">
                 <p className="text-lg font-semibold text-slate-800">Chưa có khách hàng</p>
-                <p className="text-sm leading-6 text-slate-500">Dữ liệu quản lý bắt đầu từ 01/04/2026.</p>
+                <p className="text-sm leading-6 text-slate-500">Dữ liệu quản lý bắt đầu từ 01/01/2026.</p>
               </div>
             </CardContent>
           </Card>
