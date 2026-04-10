@@ -37,14 +37,16 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
       )}
     >
       <div className="flex h-full flex-col">
-        <div className="border-b border-slate-200/80 px-6 py-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-14 items-center justify-center rounded-[1.35rem] bg-white shadow-soft ring-1 ring-slate-200/70">
-              <Image src="/images/logo.png" alt="Giặt Sấy Vui Logo" width={48} height={48} className="object-contain" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-xl font-semibold tracking-tight text-slate-800">Giặt Sấy Vui</h2>
-            </div>
+        <div className="border-b border-slate-200/80 px-6 py-5">
+          <div className="relative h-16 w-full">
+            <Image
+              src="/images/logo-full.png"
+              alt="Giặt Sấy Vui Logo"
+              fill
+              priority
+              sizes="240px"
+              className="object-contain object-left"
+            />
           </div>
         </div>
 
