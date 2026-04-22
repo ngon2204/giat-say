@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Download, ReceiptText, WalletCards } from "lucide-react"
 
+import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -126,36 +127,26 @@ export function RevenueDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="dashboard-metric border-indigo-100/80 bg-[linear-gradient(180deg,rgba(238,242,255,0.82)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold tracking-[0.01em] text-indigo-500">Số đơn</p>
-              <ReceiptText className="size-4 text-indigo-500" />
-            </div>
-            <p className="mt-4 text-[2rem] font-semibold tracking-tight text-indigo-700 sm:text-[2.25rem]">
-              {monthlyOrders.length}
-            </p>
-            <p className="mt-1 text-sm text-indigo-400">{periodLabel}</p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Số đơn"
+          value={monthlyOrders.length}
+          meta={periodLabel}
+          icon={ReceiptText}
+          accent="blue"
+        />
 
-        <Card className="dashboard-metric border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.84)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold tracking-[0.01em] text-emerald-500">Doanh thu</p>
-              <WalletCards className="size-4 text-emerald-500" />
-            </div>
-            <p className="mt-4 text-[2rem] font-semibold tracking-tight text-emerald-600 sm:text-[2.25rem]">
-              {totalRevenue.toLocaleString("vi-VN")}đ
-            </p>
-            <p className="mt-1 text-sm text-emerald-400">{periodLabel}</p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Doanh thu"
+          value={`${totalRevenue.toLocaleString("vi-VN")}đ`}
+          meta={periodLabel}
+          icon={WalletCards}
+          accent="emerald"
+        />
       </div>
 
       <Card className="dashboard-panel">
         <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-          <CardTitle className="text-xl text-slate-700">Theo ngày</CardTitle>
+          <CardTitle className="dashboard-section-title">Theo ngày</CardTitle>
         </CardHeader>
 
         <CardContent className="px-5 py-5 sm:px-6 sm:py-6">

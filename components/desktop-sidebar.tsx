@@ -32,12 +32,12 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-50 h-full w-72 border-r border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(246,249,255,0.95)_100%)] backdrop-blur-xl transition-transform duration-300",
+        "fixed left-0 top-0 z-50 h-full w-72 border-r border-slate-200/72 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] backdrop-blur-xl transition-transform duration-300",
         isMobile ? "translate-x-0" : isOpen ? "translate-x-0" : "-translate-x-full",
       )}
     >
       <div className="flex h-full flex-col">
-        <div className="border-b border-slate-200/80 px-6 py-5">
+        <div className="border-b border-slate-200/78 px-6 py-6">
           <div className="relative h-16 w-full">
             <Image
               src="/images/logo-full.png"
@@ -50,7 +50,7 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2 px-4 py-5">
+        <nav className="flex-1 space-y-1.5 px-4 py-5">
           {items.map((item) => {
             const isActive = activeTab === item.id
 
@@ -61,7 +61,7 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
                 className={cn(
                   "h-14 w-full justify-start gap-3 rounded-[1.35rem] px-3 text-left transition-all duration-200",
                   isActive
-                    ? "bg-white text-slate-800 shadow-soft"
+                    ? "border border-slate-200/72 bg-white text-slate-800 shadow-[0_18px_38px_-30px_rgba(15,23,42,0.16)]"
                     : "text-slate-500 hover:bg-white/90 hover:text-slate-700",
                 )}
                 onClick={() => {

@@ -95,10 +95,9 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
     background-image:
-      radial-gradient(circle at top left, rgba(79, 70, 229, 0.1), transparent 34%),
-      radial-gradient(circle at 82% 10%, rgba(14, 165, 233, 0.11), transparent 28%),
-      radial-gradient(circle at 70% 90%, rgba(244, 114, 182, 0.08), transparent 22%),
-      linear-gradient(180deg, #f7faff 0%, #fbfdff 42%, #f6f9ff 100%);
+      radial-gradient(circle at top left, rgba(79, 70, 229, 0.08), transparent 30%),
+      radial-gradient(circle at 78% 12%, rgba(14, 165, 233, 0.08), transparent 24%),
+      linear-gradient(180deg, #f8fbff 0%, #fbfdff 38%, #f7faff 100%);
     font-feature-settings: "cv02" 1, "cv03" 1, "cv04" 1, "ss01" 1;
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
@@ -148,11 +147,31 @@
 
 @layer utilities {
   .dashboard-page {
-    @apply space-y-5 px-4 sm:space-y-6 sm:px-5 md:px-0;
+    @apply space-y-6 px-4 sm:space-y-7 sm:px-5 md:px-0;
   }
 
   .dashboard-toolbar {
-    @apply flex flex-col gap-3 md:flex-row md:items-center md:justify-between;
+    @apply flex flex-col gap-4 md:flex-row md:items-center md:justify-between;
+  }
+
+  .dashboard-shell-header {
+    @apply sticky top-0 z-40 border-b border-slate-200/72 bg-white/82 backdrop-blur-xl;
+  }
+
+  .dashboard-shell-header-inner {
+    @apply mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-5 lg:px-8 xl:px-10;
+  }
+
+  .dashboard-shell-kicker {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-slate-400;
+  }
+
+  .dashboard-shell-title {
+    @apply mt-1 text-[1.6rem] font-semibold tracking-tight text-slate-800 sm:text-[1.78rem];
+  }
+
+  .dashboard-shell-date {
+    @apply rounded-full border border-slate-200/78 bg-white/94 px-4 py-2 text-sm font-semibold text-slate-500 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.16)];
   }
 
   .dashboard-filter-row {
@@ -160,23 +179,23 @@
   }
 
   .dashboard-panel {
-    @apply rounded-[1.9rem] border border-white/80 bg-white/94 shadow-float backdrop-blur-xl;
+    @apply rounded-[1.75rem] border border-slate-200/72 bg-white/96 shadow-[0_24px_58px_-42px_rgba(15,23,42,0.18)] backdrop-blur-xl;
   }
 
   .dashboard-panel-soft {
-    @apply rounded-[1.45rem] border border-slate-200/75 bg-slate-50/88;
+    @apply rounded-[1.35rem] border border-slate-200/78 bg-slate-50/84;
   }
 
   .dashboard-metric {
-    @apply rounded-[1.65rem] border border-white/80 bg-white/96 p-5 shadow-soft;
+    @apply rounded-[1.45rem] border border-slate-200/74 bg-white/97 p-5 shadow-[0_18px_44px_-34px_rgba(15,23,42,0.16)];
   }
 
   .dashboard-control {
-    @apply h-12 rounded-[1.1rem] border border-slate-200/80 bg-white/90 text-slate-700 shadow-press;
+    @apply h-12 rounded-[1rem] border border-slate-200/80 bg-white text-slate-700 shadow-[0_12px_24px_-20px_rgba(15,23,42,0.14)];
   }
 
   .dashboard-primary-button {
-    @apply h-12 rounded-[1.15rem] px-5 text-white shadow-[0_22px_44px_-22px_rgba(79,70,229,0.42)];
+    @apply h-12 rounded-[1rem] px-5 text-white shadow-[0_22px_44px_-22px_rgba(79,70,229,0.4)];
   }
 
   .dashboard-label {
@@ -197,11 +216,27 @@
   }
 
   .dashboard-list-row {
-    @apply flex items-start gap-3 rounded-[1.35rem] border border-slate-200/80 bg-slate-50/88 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300/90 hover:bg-white hover:shadow-soft;
+    @apply flex items-start gap-3 rounded-[1.25rem] border border-slate-200/78 bg-slate-50/78 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300/90 hover:bg-white hover:shadow-[0_18px_40px_-32px_rgba(15,23,42,0.16)];
+  }
+
+  .dashboard-section-title {
+    @apply text-xl font-semibold tracking-tight text-slate-800;
+  }
+
+  .dashboard-section-copy {
+    @apply text-sm leading-6 text-slate-500;
   }
 
   .mobile-content-wrapper {
     @apply space-y-4 p-4 sm:space-y-6 sm:p-0;
+  }
+
+  .mobile-shell-header {
+    @apply sticky top-0 z-40 border-b border-slate-200/72 bg-white/82 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] backdrop-blur-xl;
+  }
+
+  .mobile-shell-card {
+    @apply mx-auto flex max-w-xl items-center gap-3 rounded-[1.35rem] border border-slate-200/76 bg-white/94 px-4 py-3 shadow-[0_20px_40px_-28px_rgba(15,23,42,0.16)];
   }
 
   .mobile-dashboard-grid {

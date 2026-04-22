@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 
 import { Badge } from "@/components/ui/badge"
+import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { supabase, type Order } from "@/lib/supabase"
@@ -121,35 +122,29 @@ export function CustomerDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="dashboard-metric">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-500">Khách đang quản lý</p>
-              <Users className="size-4 text-blue-600" />
-            </div>
-            <p className="mt-4 text-3xl font-semibold text-slate-800">{filteredCustomers.length}</p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Khách đang quản lý"
+          value={filteredCustomers.length}
+          meta="Từ đầu năm 2026"
+          icon={Users}
+          accent="blue"
+        />
 
-        <Card className="dashboard-metric">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-500">Đơn mới</p>
-              <ShoppingBag className="size-4 text-violet-600" />
-            </div>
-            <p className="mt-4 text-3xl font-semibold text-violet-600">{managedOrders.length}</p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Đơn mới"
+          value={managedOrders.length}
+          meta="Từ đầu năm 2026"
+          icon={ShoppingBag}
+          accent="violet"
+        />
 
-        <Card className="dashboard-metric">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-500">Chi tiêu</p>
-              <Wallet className="size-4 text-emerald-600" />
-            </div>
-            <p className="mt-4 text-3xl font-semibold text-emerald-600">{totalSpent.toLocaleString("vi-VN")}đ</p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Chi tiêu"
+          value={`${totalSpent.toLocaleString("vi-VN")}đ`}
+          meta="Từ đầu năm 2026"
+          icon={Wallet}
+          accent="emerald"
+        />
       </div>
 
       <div className="grid gap-4">

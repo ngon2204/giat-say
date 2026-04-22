@@ -47,7 +47,7 @@ export default function Home() {
     <div className="min-h-screen text-slate-700">
       <div className="flex min-h-[100dvh] flex-col overflow-x-hidden lg:hidden">
         <MobileNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="mx-auto flex-1 w-full max-w-xl pb-[calc(env(safe-area-inset-bottom)+7.2rem)] pt-3">
+        <main className="mx-auto w-full max-w-xl flex-1 pb-[calc(env(safe-area-inset-bottom)+7.2rem)] pt-3">
           {tabs[activeTab]}
         </main>
       </div>
@@ -66,31 +66,31 @@ export default function Home() {
             sidebarOpen ? "ml-72" : "ml-0"
           )}
         >
-          <header className="sticky top-0 z-40 border-b border-white/70 bg-white/72 backdrop-blur-xl">
-            <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-8 py-5 xl:px-10">
+          <header className="dashboard-shell-header">
+            <div className="dashboard-shell-header-inner">
               <div className="flex items-center gap-4">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="size-11 rounded-2xl border border-white/80 bg-white/92 shadow-soft hover:bg-white"
+                  className="size-11 rounded-2xl border border-slate-200/78 bg-white/94 shadow-[0_16px_34px_-24px_rgba(15,23,42,0.16)] hover:bg-white"
                 >
                   {sidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
                 </Button>
 
                 <div>
-                  <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-slate-400">Giặt Sấy Vui</p>
-                  <h1 className="mt-1 text-[1.75rem] font-semibold tracking-tight text-slate-800">{titles[activeTab]}</h1>
+                  <p className="dashboard-shell-kicker">Giặt Sấy Vui</p>
+                  <h1 className="dashboard-shell-title">{titles[activeTab]}</h1>
                 </div>
               </div>
 
-              <div className="rounded-full border border-white/80 bg-white/92 px-4 py-2 text-sm font-semibold text-slate-500 shadow-soft">
+              <div className="dashboard-shell-date">
                 {todayLabel}
               </div>
             </div>
           </header>
 
-          <main className="flex-1 px-8 py-8 xl:px-10">
+          <main className="flex-1 px-4 py-6 sm:px-5 lg:px-8 xl:px-10">
             <div className="mx-auto max-w-7xl">{tabs[activeTab]}</div>
           </main>
         </div>

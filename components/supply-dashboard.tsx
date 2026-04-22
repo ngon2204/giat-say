@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import { AlertCircle, Archive, Boxes, PackageSearch, Plus, Trash2, TrendingDown } from "lucide-react"
 
+import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -517,57 +518,34 @@ export function SupplyDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="dashboard-metric border-sky-100/80 bg-[linear-gradient(180deg,rgba(239,246,255,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
-          <CardHeader className="p-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base text-sky-700">Nhập kho tháng</CardTitle>
-              <Boxes className="size-4 text-sky-500" />
-            </div>
-            <CardDescription>{periodLabel}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-sky-600">{formatCurrency(monthlyImportValue)}</div>
-            <p className="mt-2 text-sm text-sky-500">
-              {formatQuantity(monthlyImportQuantity)} sản phẩm, {monthlyImports.length} lượt nhập
-            </p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Nhập kho tháng"
+          value={formatCurrency(monthlyImportValue)}
+          meta={`${formatQuantity(monthlyImportQuantity)} sản phẩm, ${monthlyImports.length} lượt nhập`}
+          icon={Boxes}
+          accent="sky"
+        />
 
-        <Card className="dashboard-metric border-amber-100/80 bg-[linear-gradient(180deg,rgba(255,247,237,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
-          <CardHeader className="p-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base text-amber-700">Xuất dùng tháng</CardTitle>
-              <TrendingDown className="size-4 text-amber-500" />
-            </div>
-            <CardDescription>{periodLabel}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-amber-600">{formatCurrency(monthlyUsageCost)}</div>
-            <p className="mt-2 text-sm text-amber-500">
-              {formatQuantity(monthlyExportQuantity)} sản phẩm, {monthlyExports.length} lượt xuất
-            </p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Xuất dùng tháng"
+          value={formatCurrency(monthlyUsageCost)}
+          meta={`${formatQuantity(monthlyExportQuantity)} sản phẩm, ${monthlyExports.length} lượt xuất`}
+          icon={TrendingDown}
+          accent="amber"
+        />
 
-        <Card className="dashboard-metric border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.88)_0%,rgba(255,255,255,0.97)_78%)]">
-          <CardHeader className="p-0">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base text-emerald-700">Giá trị tồn cuối kỳ</CardTitle>
-              <Archive className="size-4 text-emerald-500" />
-            </div>
-            <CardDescription>Chốt tới {new Date(periodEndDate).toLocaleDateString("vi-VN")}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-emerald-600">{formatCurrency(inventoryValue)}</div>
-            <p className="mt-2 text-sm text-emerald-500">{periodInventoryItems.length} mặt hàng còn tồn</p>
-          </CardContent>
-        </Card>
-
+        <DashboardMetricCard
+          label="Giá trị tồn cuối kỳ"
+          value={formatCurrency(inventoryValue)}
+          meta={`${periodInventoryItems.length} mặt hàng còn tồn`}
+          icon={Archive}
+          accent="emerald"
+        />
       </div>
 
       <Card className="dashboard-panel w-full overflow-hidden">
         <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-          <CardTitle>Tồn Theo Lô Cuối Kỳ</CardTitle>
+          <CardTitle className="dashboard-section-title">Tồn Theo Lô Cuối Kỳ</CardTitle>
           <CardDescription>
             Chốt tồn tới ngày {new Date(periodEndDate).toLocaleDateString("vi-VN")}
           </CardDescription>
@@ -632,7 +610,7 @@ export function SupplyDashboard() {
 
       <Card className="dashboard-panel">
         <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-          <CardTitle>Sử Dụng Vật Tư Trong Tháng</CardTitle>
+          <CardTitle className="dashboard-section-title">Sử Dụng Vật Tư Trong Tháng</CardTitle>
           <CardDescription>{periodLabel}</CardDescription>
         </CardHeader>
         <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
@@ -670,7 +648,7 @@ export function SupplyDashboard() {
 
       <Card className="dashboard-panel">
         <CardHeader>
-          <CardTitle>Lịch Sử Vật Tư</CardTitle>
+          <CardTitle className="dashboard-section-title">Lịch Sử Vật Tư</CardTitle>
         </CardHeader>
         <CardContent>
           {monthlySupplies.length === 0 ? (

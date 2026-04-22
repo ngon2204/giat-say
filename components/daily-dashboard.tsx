@@ -16,6 +16,7 @@ import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 
 import { Badge } from "@/components/ui/badge"
+import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -803,36 +804,26 @@ export function DailyDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="dashboard-metric border-indigo-100/80 bg-[linear-gradient(180deg,rgba(238,242,255,0.82)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold tracking-[0.01em] text-indigo-500">Tổng đơn</p>
-              <CalendarDays className="size-4 text-indigo-500" />
-            </div>
-            <p className="mt-4 text-[2rem] font-semibold tracking-tight text-indigo-700 sm:text-[2.25rem]">
-              {todayOrders.length}
-            </p>
-            <p className="mt-1 text-sm text-indigo-400">{currentDateLabel}</p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Tổng đơn"
+          value={todayOrders.length}
+          meta={currentDateLabel}
+          icon={CalendarDays}
+          accent="blue"
+        />
 
-        <Card className="dashboard-metric border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.84)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold tracking-[0.01em] text-emerald-500">Tổng tiền</p>
-              <Banknote className="size-4 text-emerald-500" />
-            </div>
-            <p className="mt-4 text-[2rem] font-semibold tracking-tight text-emerald-600 sm:text-[2.25rem]">
-              {totalAmount.toLocaleString("vi-VN")}đ
-            </p>
-            <p className="mt-1 text-sm text-emerald-400">{currentDateLabel}</p>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Tổng tiền"
+          value={`${totalAmount.toLocaleString("vi-VN")}đ`}
+          meta={currentDateLabel}
+          icon={Banknote}
+          accent="emerald"
+        />
       </div>
 
       <Card className="dashboard-panel">
         <CardHeader className="flex flex-row items-center justify-between gap-3 px-5 pb-0 pt-5 sm:px-6 sm:pt-6">
-          <CardTitle className="text-xl text-slate-700">Đơn trong ngày</CardTitle>
+          <CardTitle className="dashboard-section-title">Đơn trong ngày</CardTitle>
           <Badge className="rounded-full bg-slate-100 px-3 py-1 text-slate-500 hover:bg-slate-100">
             {todayOrders.length} đơn
           </Badge>

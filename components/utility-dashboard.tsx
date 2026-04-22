@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Droplets, Plus, ReceiptText, Trash2, Zap } from "lucide-react"
+import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Trash2 } from "lucide-react"
 import { supabase, type UtilityBill } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
@@ -217,51 +218,35 @@ export function UtilityDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="dashboard-metric">
-          <CardHeader>
-            <CardTitle>Tiền Điện</CardTitle>
-            <CardDescription>
-              Tháng {selectedMonth}/{selectedYear}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold text-rose-500">
-              {electricBill ? electricBill.amount.toLocaleString("vi-VN") : "0"}đ
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <DashboardMetricCard
+          label="Tiền điện"
+          value={`${electricBill ? electricBill.amount.toLocaleString("vi-VN") : "0"}đ`}
+          meta={`Tháng ${selectedMonth}/${selectedYear}`}
+          icon={Zap}
+          accent="rose"
+        />
 
-        <Card className="dashboard-metric">
-          <CardHeader>
-            <CardTitle>Tiền Nước</CardTitle>
-            <CardDescription>
-              Tháng {selectedMonth}/{selectedYear}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold text-sky-500">
-              {waterBill ? waterBill.amount.toLocaleString("vi-VN") : "0"}đ
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Tiền nước"
+          value={`${waterBill ? waterBill.amount.toLocaleString("vi-VN") : "0"}đ`}
+          meta={`Tháng ${selectedMonth}/${selectedYear}`}
+          icon={Droplets}
+          accent="sky"
+        />
 
-        <Card className="dashboard-metric">
-          <CardHeader>
-            <CardTitle>Tổng Chi Phí</CardTitle>
-            <CardDescription>
-              Tháng {selectedMonth}/{selectedYear}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold text-amber-500">{totalUtilityCost.toLocaleString("vi-VN")}đ</div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Tổng chi phí"
+          value={`${totalUtilityCost.toLocaleString("vi-VN")}đ`}
+          meta={`Tháng ${selectedMonth}/${selectedYear}`}
+          icon={ReceiptText}
+          accent="amber"
+        />
       </div>
 
       <Card className="dashboard-panel">
         <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-          <CardTitle className="text-xl">Lịch sử hóa đơn</CardTitle>
+          <CardTitle className="dashboard-section-title">Lịch sử hóa đơn</CardTitle>
         </CardHeader>
         <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
           {monthlyBills.length === 0 ? (

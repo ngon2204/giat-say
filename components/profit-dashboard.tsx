@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { BadgePercent, Package, ShoppingBag, TrendingUp, Wallet, WalletCards } from "lucide-react"
 
+import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { buildSupplyInventorySnapshot } from "@/lib/supply-inventory"
@@ -151,75 +153,61 @@ export function ProfitDashboard() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Card className="dashboard-metric border-emerald-100/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.86)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardHeader className="p-0">
-            <CardTitle className="text-base text-emerald-700">Tổng doanh thu</CardTitle>
-            <CardDescription>{periodLabel}/{selectedYear}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}</div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Tổng doanh thu"
+          value={formatCurrency(totalRevenue)}
+          meta={`${periodLabel}/${selectedYear}`}
+          icon={TrendingUp}
+          accent="emerald"
+        />
 
-        <Card className="dashboard-metric border-rose-100/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.86)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardHeader className="p-0">
-            <CardTitle className="text-base text-rose-700">Tổng chi phí</CardTitle>
-            <CardDescription>{periodLabel}/{selectedYear}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-rose-600">{formatCurrency(totalCosts)}</div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Tổng chi phí"
+          value={formatCurrency(totalCosts)}
+          meta={`${periodLabel}/${selectedYear}`}
+          icon={Wallet}
+          accent="rose"
+        />
 
-        <Card className="dashboard-metric border-indigo-100/80 bg-[linear-gradient(180deg,rgba(238,242,255,0.86)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardHeader className="p-0">
-            <CardTitle className="text-base text-indigo-700">Lãi thực</CardTitle>
-            <CardDescription>{periodLabel}/{selectedYear}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className={`text-3xl font-bold ${netProfit >= 0 ? "text-indigo-600" : "text-red-600"}`}>
-              {formatCurrency(netProfit)}
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Lãi thực"
+          value={formatCurrency(netProfit)}
+          meta={`${periodLabel}/${selectedYear}`}
+          icon={WalletCards}
+          accent={netProfit >= 0 ? "violet" : "rose"}
+          valueClassName={netProfit >= 0 ? undefined : "text-rose-600"}
+        />
 
-        <Card className="dashboard-metric border-sky-100/80 bg-[linear-gradient(180deg,rgba(240,249,255,0.86)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardHeader className="p-0">
-            <CardTitle className="text-base text-sky-700">Biên lợi nhuận</CardTitle>
-            <CardDescription>{periodLabel}/{selectedYear}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className={`text-3xl font-bold ${profitMargin >= 0 ? "text-sky-600" : "text-red-600"}`}>
-              {profitMargin.toFixed(1)}%
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Biên lợi nhuận"
+          value={`${profitMargin.toFixed(1)}%`}
+          meta={`${periodLabel}/${selectedYear}`}
+          icon={BadgePercent}
+          accent={profitMargin >= 0 ? "sky" : "rose"}
+          valueClassName={profitMargin >= 0 ? undefined : "text-rose-600"}
+        />
 
-        <Card className="dashboard-metric border-violet-100/80 bg-[linear-gradient(180deg,rgba(245,243,255,0.86)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardHeader className="p-0">
-            <CardTitle className="text-base text-violet-700">Số đơn trong kỳ</CardTitle>
-            <CardDescription>{periodLabel}/{selectedYear}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-violet-600">{totalOrders}</div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Số đơn trong kỳ"
+          value={totalOrders}
+          meta={`${periodLabel}/${selectedYear}`}
+          icon={ShoppingBag}
+          accent="violet"
+        />
 
-        <Card className="dashboard-metric border-slate-200/90 bg-[linear-gradient(180deg,rgba(248,250,252,0.9)_0%,rgba(255,255,255,0.96)_78%)]">
-          <CardHeader className="p-0">
-            <CardTitle className="text-base text-slate-700">Trung bình / đơn</CardTitle>
-            <CardDescription>{periodLabel}/{selectedYear}</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0 pt-4">
-            <div className="text-3xl font-bold text-slate-700">{formatCurrency(averageOrderValue)}</div>
-          </CardContent>
-        </Card>
+        <DashboardMetricCard
+          label="Trung bình / đơn"
+          value={formatCurrency(averageOrderValue)}
+          meta={`${periodLabel}/${selectedYear}`}
+          icon={Package}
+          accent="slate"
+        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Card className="dashboard-panel">
           <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-            <CardTitle>Chi tiết tính lãi</CardTitle>
+            <CardTitle className="dashboard-section-title">Chi tiết tính lãi</CardTitle>
             <CardDescription>Kỳ: {periodLabel}/{selectedYear}</CardDescription>
           </CardHeader>
           <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
@@ -278,7 +266,7 @@ export function ProfitDashboard() {
 
         <Card className="dashboard-panel">
           <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-            <CardTitle>Điểm nhấn trong kỳ</CardTitle>
+            <CardTitle className="dashboard-section-title">Điểm nhấn trong kỳ</CardTitle>
             <CardDescription>Tóm tắt nhanh để soát hiệu quả vận hành</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 px-5 py-5 sm:px-6 sm:py-6">
@@ -310,7 +298,7 @@ export function ProfitDashboard() {
       {supplyCostByCategory.length > 0 ? (
         <Card className="dashboard-panel">
           <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-            <CardTitle>Nhóm vật tư ăn chi phí</CardTitle>
+            <CardTitle className="dashboard-section-title">Nhóm vật tư ăn chi phí</CardTitle>
             <CardDescription>Kỳ: {periodLabel}/{selectedYear}</CardDescription>
           </CardHeader>
           <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
@@ -341,7 +329,7 @@ export function ProfitDashboard() {
       {monthlySupplies.length > 0 ? (
         <Card className="dashboard-panel">
           <CardHeader className="px-5 pt-5 pb-0 sm:px-6 sm:pt-6">
-            <CardTitle>Sử dụng vật tư trong tháng</CardTitle>
+            <CardTitle className="dashboard-section-title">Sử dụng vật tư trong tháng</CardTitle>
             <CardDescription>Kỳ: {periodLabel}/{selectedYear}</CardDescription>
           </CardHeader>
           <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
