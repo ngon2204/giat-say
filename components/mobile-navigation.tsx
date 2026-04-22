@@ -61,7 +61,7 @@ export function MobileNavigation({ activeTab, setActiveTab }: MobileNavigationPr
                   className={cn(
                     "flex h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 transition-all duration-200 active:scale-95",
                     isActive
-                      ? `bg-slate-100 ring-1 ring-slate-200/72 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.16)] ${item.color}`
+                      ? `bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(243,247,255,0.95)_100%)] ring-1 ring-slate-200/72 shadow-[0_16px_32px_-24px_rgba(15,23,42,0.18)] ${item.color}`
                       : "text-slate-400 hover:bg-slate-50 hover:text-slate-600",
                   )}
                   onClick={() => setActiveTab(item.id)}

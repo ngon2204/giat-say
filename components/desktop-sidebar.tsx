@@ -32,7 +32,7 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-50 h-full w-72 border-r border-slate-200/72 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(247,250,255,0.96)_100%)] backdrop-blur-xl transition-transform duration-300",
+        "fixed left-4 top-4 z-50 h-[calc(100vh-2rem)] w-[19rem] rounded-[2rem] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(246,249,255,0.95)_100%)] shadow-[0_34px_80px_-42px_rgba(15,23,42,0.28)] backdrop-blur-2xl transition-transform duration-300",
         isMobile ? "translate-x-0" : isOpen ? "translate-x-0" : "-translate-x-full",
       )}
     >
@@ -50,7 +50,7 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1.5 px-4 py-5">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto px-4 py-5">
           {items.map((item) => {
             const isActive = activeTab === item.id
 
@@ -61,7 +61,7 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
                 className={cn(
                   "h-14 w-full justify-start gap-3 rounded-[1.35rem] px-3 text-left transition-all duration-200",
                   isActive
-                    ? "border border-slate-200/72 bg-white text-slate-800 shadow-[0_18px_38px_-30px_rgba(15,23,42,0.16)]"
+                    ? "border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(243,247,255,0.94)_100%)] text-slate-800 shadow-[0_22px_42px_-30px_rgba(15,23,42,0.18)]"
                     : "text-slate-500 hover:bg-white/90 hover:text-slate-700",
                 )}
                 onClick={() => {
@@ -74,7 +74,7 @@ export function DesktopSidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isM
                 <div
                   className={cn(
                     "flex size-10 items-center justify-center rounded-2xl border",
-                    isActive ? "border-blue-100 bg-blue-50/80" : "border-transparent bg-transparent",
+                    isActive ? "border-slate-200/72 bg-white shadow-xs" : "border-transparent bg-transparent",
                   )}
                 >
                   <item.icon className={cn("size-5", isActive ? item.color : "text-slate-400")} />

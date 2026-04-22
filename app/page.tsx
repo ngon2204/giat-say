@@ -63,7 +63,7 @@ export default function Home() {
         <div
           className={cn(
             "flex flex-1 flex-col transition-all duration-300 ease-out",
-            sidebarOpen ? "ml-72" : "ml-0"
+            sidebarOpen ? "ml-[21rem]" : "ml-0"
           )}
         >
           <header className="dashboard-shell-header">

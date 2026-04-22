@@ -19,40 +19,75 @@ type DashboardMetricAccent =
 const accentStyles: Record<
   DashboardMetricAccent,
   {
+    panel: string
     chip: string
+    label: string
+    meta: string
     value: string
   }
 > = {
   blue: {
-    chip: "bg-blue-50 text-blue-600 ring-blue-100/80",
+    panel:
+      "border-blue-100/80 bg-[linear-gradient(135deg,rgba(239,246,255,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-blue-600 ring-blue-100/90 shadow-[0_16px_30px_-22px_rgba(37,99,235,0.35)]",
+    label: "text-blue-700",
+    meta: "text-slate-600",
     value: "text-blue-700",
   },
   emerald: {
-    chip: "bg-emerald-50 text-emerald-600 ring-emerald-100/80",
+    panel:
+      "border-emerald-100/80 bg-[linear-gradient(135deg,rgba(236,253,245,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-emerald-600 ring-emerald-100/90 shadow-[0_16px_30px_-22px_rgba(5,150,105,0.3)]",
+    label: "text-emerald-700",
+    meta: "text-slate-600",
     value: "text-emerald-600",
   },
   amber: {
-    chip: "bg-amber-50 text-amber-600 ring-amber-100/80",
+    panel:
+      "border-amber-100/80 bg-[linear-gradient(135deg,rgba(255,247,237,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-amber-600 ring-amber-100/90 shadow-[0_16px_30px_-22px_rgba(217,119,6,0.28)]",
+    label: "text-amber-700",
+    meta: "text-slate-600",
     value: "text-amber-600",
   },
   violet: {
-    chip: "bg-violet-50 text-violet-600 ring-violet-100/80",
+    panel:
+      "border-violet-100/80 bg-[linear-gradient(135deg,rgba(245,243,255,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-violet-600 ring-violet-100/90 shadow-[0_16px_30px_-22px_rgba(124,58,237,0.28)]",
+    label: "text-violet-700",
+    meta: "text-slate-600",
     value: "text-violet-700",
   },
   rose: {
-    chip: "bg-rose-50 text-rose-600 ring-rose-100/80",
+    panel:
+      "border-rose-100/80 bg-[linear-gradient(135deg,rgba(255,241,242,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-rose-600 ring-rose-100/90 shadow-[0_16px_30px_-22px_rgba(225,29,72,0.26)]",
+    label: "text-rose-700",
+    meta: "text-slate-600",
     value: "text-rose-600",
   },
   sky: {
-    chip: "bg-sky-50 text-sky-600 ring-sky-100/80",
+    panel:
+      "border-sky-100/80 bg-[linear-gradient(135deg,rgba(240,249,255,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-sky-600 ring-sky-100/90 shadow-[0_16px_30px_-22px_rgba(2,132,199,0.28)]",
+    label: "text-sky-700",
+    meta: "text-slate-600",
     value: "text-sky-700",
   },
   pink: {
-    chip: "bg-pink-50 text-pink-600 ring-pink-100/80",
+    panel:
+      "border-pink-100/80 bg-[linear-gradient(135deg,rgba(253,242,248,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-pink-600 ring-pink-100/90 shadow-[0_16px_30px_-22px_rgba(219,39,119,0.28)]",
+    label: "text-pink-700",
+    meta: "text-slate-600",
     value: "text-pink-700",
   },
   slate: {
-    chip: "bg-slate-100 text-slate-600 ring-slate-200/80",
+    panel:
+      "border-slate-200/78 bg-[linear-gradient(135deg,rgba(248,250,252,0.98)_0%,rgba(255,255,255,0.94)_100%)]",
+    chip: "bg-white text-slate-600 ring-slate-200/80 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.2)]",
+    label: "text-slate-600",
+    meta: "text-slate-500",
     value: "text-slate-800",
   },
 }
@@ -79,13 +114,13 @@ export function DashboardMetricCard({
   const style = accentStyles[accent]
 
   return (
-    <Card className={cn("dashboard-metric", className)}>
+    <Card className={cn("dashboard-metric overflow-hidden", style.panel, className)}>
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+            <p className={cn("text-[0.72rem] font-semibold uppercase tracking-[0.18em]", style.label)}>{label}</p>
             <div className={cn("dashboard-value mt-4", style.value, valueClassName)}>{value}</div>
-            {meta ? <p className="mt-2 text-sm leading-6 text-slate-500">{meta}</p> : null}
+            {meta ? <p className={cn("mt-2 text-sm leading-6", style.meta)}>{meta}</p> : null}
           </div>
 
           <div
