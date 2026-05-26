@@ -9,6 +9,7 @@ export const supplyTypes: SupplyTypeOption[] = [
   { value: "softener-comfort-sunny-3l7", label: "Nước xả Comfort Nắng mới 3L7", category: "Nước xả" },
   { value: "softener-comfort-dry-2l", label: "Nước xả Comfort Kiêu Sa 3L7", category: "Nước xả" },
   { value: "softener-comfort-banmai-3l7", label: "Nước xả Comfort Ban mai 3L7", category: "Nước xả" },
+  { value: "softener-comfort-dry-after-dry", label: "Nước xả Comfort sau sấy", category: "Nước xả" },
   { value: "softener-ecolife", label: "Nước xả Comfort Vườn Xuân 3L7", category: "Nước xả" },
   { value: "softener-hygiene-3l5", label: "Nước xả Hygiene 3L5", category: "Nước xả" },
   { value: "softener-downy-3l", label: "Nước xả Downy 3L", category: "Nước xả" },
