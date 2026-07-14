@@ -15,13 +15,16 @@ export const supplyTypes: SupplyTypeOption[] = [
   { value: "softener-downy-3l", label: "Nước xả Downy 3L", category: "Nước xả" },
   { value: "softener-downy-3l5", label: "Nước xả Downy 3.5L", category: "Nước xả" },
   { value: "softener-downy-4l-204", label: "Nước xả Downy 4L", category: "Nước xả" },
+  { value: "softener-downy-3l-167", label: "Nước xả Downy 3L", category: "Nước xả" },
   { value: "softener-bella-3l5", label: "Nước xả Bella 3L", category: "Nước xả" },
   { value: "softener-downy-3l-157", label: "Nước xả Ecolife 3.5L", category: "Nước xả" },
   { value: "softener-dly", label: "Nước xả DLY", category: "Nước xả" },
   { value: "detergent-lix", label: "Nước giặt Lix", category: "Nước giặt" },
   { value: "detergent-ecolife", label: "Nước giặt Ecolife", category: "Nước giặt" },
+  { value: "detergent-power", label: "Nước giặt Power", category: "Nước giặt" },
   { value: "powder-detergent-lix", label: "Bột giặt Lix", category: "Bột giặt" },
   { value: "powder-detergent-pao", label: "Bột giặt Pao", category: "Bột giặt" },
+  { value: "powder-detergent", label: "Bột giặt", category: "Bột giặt" },
   { value: "baking-soda", label: "Baking Soda", category: "Chất tẩy" },
   { value: "vinegar", label: "Giấm", category: "Chất tẩy" },
   { value: "dish-soap", label: "Nước rửa chén", category: "Chất tẩy" },
@@ -29,6 +32,21 @@ export const supplyTypes: SupplyTypeOption[] = [
 ]
 
 const supplyTypeMap = new Map(supplyTypes.map((item) => [item.value, item]))
+
+export function normalizeSupplyTypeName(value: string) {
+  return value.normalize("NFC").trim().toLocaleLowerCase("vi-VN")
+}
+
+export function findLegacySupplyTypes(label: string, category: string) {
+  const normalizedLabel = normalizeSupplyTypeName(label)
+  const normalizedCategory = normalizeSupplyTypeName(category)
+
+  return supplyTypes.filter(
+    (item) =>
+      normalizeSupplyTypeName(item.label) === normalizedLabel &&
+      normalizeSupplyTypeName(item.category) === normalizedCategory,
+  )
+}
 
 export function getSupplyType(type: string) {
   return supplyTypeMap.get(type)

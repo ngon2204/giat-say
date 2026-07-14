@@ -63,3 +63,10 @@ export interface NewSupply {
   total_price: number
   action: "import" | "export"
 }
+
+export interface SupplyType {
+  id: string
+  label: string
+  category: string
+  created_at: string
+}

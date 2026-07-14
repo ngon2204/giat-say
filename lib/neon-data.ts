@@ -1,5 +1,6 @@
 import { neonPool } from "@/lib/neon"
-import type { NewOrder, NewSupply, Order, Supply, UtilityBill, UtilityBillInput } from "@/lib/types"
+import { findLegacySupplyTypes } from "@/lib/supply-types"
+import type { NewOrder, NewSupply, Order, Supply, SupplyType, UtilityBill, UtilityBillInput } from "@/lib/types"
 
 export async function listOrders() {
   const result = await neonPool.query<Order>(
@@ -237,4 +238,97 @@ export async function upsertUtilityBill(bill: UtilityBillInput) {
 
 export async function deleteUtilityBill(id: string) {
   await neonPool.query("DELETE FROM utility_bills WHERE id = $1", [id])
+}
+
+export async function listSupplyTypes() {
+  const result = await neonPool.query<SupplyType>(
+    `
+      SELECT
+        id,
+        label,
+        category,
+        created_at
+      FROM supply_types
+      ORDER BY category, label
+    `,
+  )
+
+  return result.rows
+}
+
+export async function createSupplyType(label: string, category: string) {
+  const result = await neonPool.query<SupplyType>(
+    `
+      INSERT INTO supply_types (label, category)
+      VALUES ($1, $2)
+      RETURNING
+        id,
+        label,
+        category,
+        created_at
+    `,
+    [label, category],
+  )
+
+  return result.rows[0]
+}
+
+export async function deleteSupplyType(id: string) {
+  const client = await neonPool.connect()
+
+  try {
+    await client.query("BEGIN")
+
+    const supplyTypeResult = await client.query<SupplyType>(
+      `
+        SELECT
+          id,
+          label,
+          category,
+          created_at
+        FROM supply_types
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [id],
+    )
+
+    const supplyType = supplyTypeResult.rows[0]
+    if (!supplyType) {
+      await client.query("ROLLBACK")
+      return { status: "not_found" as const }
+    }
+
+    const inventoryTypeKeys = [
+      id,
+      ...findLegacySupplyTypes(supplyType.label, supplyType.category).map((item) => item.value),
+    ]
+    const stockResult = await client.query<{ stock: number }>(
+      `
+        SELECT COALESCE(
+          SUM(CASE WHEN action = 'import' THEN quantity ELSE -quantity END),
+          0
+        )::integer AS stock
+        FROM supplies
+        WHERE type = ANY($1::text[])
+      `,
+      [Array.from(new Set(inventoryTypeKeys))],
+    )
+    const stock = Number(stockResult.rows[0]?.stock ?? 0)
+
+    if (stock > 0) {
+      await client.query("ROLLBACK")
+      return { status: "has_stock" as const, stock, supplyType }
+    }
+
+    await client.query("DELETE FROM supply_types WHERE id = $1", [id])
+    await client.query("COMMIT")
+
+    return { status: "deleted" as const, supplyType }
+  } catch (error) {
+    await client.query("ROLLBACK")
+    throw error
+  } finally {
+    client.release()
+  }
 }

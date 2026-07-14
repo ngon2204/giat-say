@@ -7,14 +7,31 @@ import { AlertCircle, Archive, Boxes, PackageSearch, Plus, Trash2, TrendingDown 
 import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { buildSupplyInventorySnapshot, estimateSupplyExport } from "@/lib/supply-inventory"
-import { supabase, type Supply } from "@/lib/supabase"
-import { getSupplyLabel, supplyTypes } from "@/lib/supply-types"
+import { findLegacySupplyTypes, getSupplyLabel, supplyTypes as legacySupplyTypes } from "@/lib/supply-types"
+
+interface Supply {
+  id: string
+  date: string
+  type: string
+  quantity: number
+  unit_price: number
+  total_price: number
+  action: "import" | "export"
+  created_at: string
+}
+
+interface SupplyTypeOption {
+  id: string
+  value: string
+  label: string
+  category: string
+}
 
 const months = [
   { value: 1, label: "Tháng 1" },
@@ -44,32 +61,109 @@ export function SupplyDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [supplies, setSupplies] = useState<Supply[]>([])
+  const [supplyTypes, setSupplyTypes] = useState<SupplyTypeOption[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isNewTypeDialogOpen, setIsNewTypeDialogOpen] = useState(false)
+  const [deletingSupplyTypeId, setDeletingSupplyTypeId] = useState<string | null>(null)
   const [newSupply, setNewSupply] = useState({
     type: "",
     quantity: "",
     unitPrice: "",
     action: "import" as "import" | "export",
   })
+  const [newSupplyType, setNewSupplyType] = useState({
+    label: "",
+    category: "",
+  })
   const { toast } = useToast()
 
+  const getSupplyTypeLabel = (typeId: string) => {
+    // Try to find in new supplyTypes first
+    const newType = supplyTypes.find((t) => t.value === typeId)
+    if (newType) return newType.label
+
+    // Fallback to old mapping from supply-types.ts
+    return getSupplyLabel(typeId) || typeId
+  }
+
   useEffect(() => {
+    fetchSupplyTypes()
     fetchSupplies()
   }, [])
 
-  const fetchSupplies = async () => {
-    const { data, error } = await supabase.from("supplies").select("*").order("created_at", { ascending: false })
+  const fetchSupplyTypes = async () => {
+    try {
+      const response = await fetch("/api/supply-types")
+      if (!response.ok) {
+        throw new Error("Không thể tải danh sách loại vật tư")
+      }
+      const data = await response.json()
+      setSupplyTypes(data.map((type: any) => ({ ...type, value: type.id })))
+    } catch (error) {
+      console.error("Error fetching supply types:", error)
+      // Fallback to built-in types if API fails
+    }
+  }
 
-    if (error) {
+  const fetchSupplies = async () => {
+    try {
+      const response = await fetch("/api/supplies")
+      if (!response.ok) {
+        throw new Error("Không thể tải danh sách vật tư")
+      }
+      const data = await response.json()
+      setSupplies(data || [])
+    } catch (error) {
       toast({
         title: "Lỗi",
-        description: "Không thể tải danh sách vật tư",
+        description: error instanceof Error ? error.message : "Không thể tải danh sách vật tư",
+        variant: "destructive",
+      })
+    }
+  }
+
+  useEffect(() => {
+    fetchSupplyTypes()
+    fetchSupplies()
+  }, [])
+
+  const handleAddSupplyType = async () => {
+    if (!newSupplyType.label || !newSupplyType.category) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập tên vật tư và loại",
         variant: "destructive",
       })
       return
     }
 
-    setSupplies(data || [])
+    try {
+      const response = await fetch("/api/supply-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSupplyType),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Có lỗi xảy ra khi thêm loại vật tư")
+      }
+
+      await fetchSupplyTypes()
+      toast({
+        title: "Thành công",
+        description: `Đã thêm ${newSupplyType.label}`,
+      })
+      setNewSupplyType({ label: "", category: "" })
+      setIsNewTypeDialogOpen(false)
+    } catch (error) {
+      console.error("Error creating supply type:", error)
+      toast({
+        title: "Lỗi",
+        description: error instanceof Error ? error.message : "Có lỗi xảy ra khi thêm loại vật tư",
+        variant: "destructive",
+      })
+    }
   }
 
   const transactionDate = format(selectedDate, "yyyy-MM-dd")
@@ -150,6 +244,9 @@ export function SupplyDashboard() {
       totalPrice = exportPreview.totalCost
     }
 
+    const supplyTypeInfo = supplyTypes.find((t) => t.value === newSupply.type)
+    const supplyTypeLabel = supplyTypeInfo?.label || newSupply.type
+
     const supply = {
       date: transactionDate,
       type: newSupply.type,
@@ -159,61 +256,75 @@ export function SupplyDashboard() {
       action: newSupply.action,
     }
 
-    const { error } = await supabase.from("supplies").insert([supply])
+    try {
+      const response = await fetch("/api/supplies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(supply),
+      })
 
-    if (error) {
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Có lỗi xảy ra khi thêm vật tư")
+      }
+
+      await fetchSupplies()
+
+      toast({
+        title: "Thành công",
+        description: `Đã ${newSupply.action === "import" ? "nhập" : "xuất"} ${quantity} ${supplyTypeLabel}`,
+      })
+
+      setNewSupply({
+        type: "",
+        quantity: "",
+        unitPrice: "",
+        action: "import",
+      })
+      setSelectedDate(new Date())
+      setIsDialogOpen(false)
+    } catch (error) {
       console.error("Error creating supply:", error)
       toast({
         title: "Lỗi",
-        description: "Có lỗi xảy ra khi thêm vật tư",
+        description: error instanceof Error ? error.message : "Có lỗi xảy ra khi thêm vật tư",
         variant: "destructive",
       })
-      return
     }
-
-    await fetchSupplies()
-
-    const typeName = getSupplyLabel(newSupply.type)
-    toast({
-      title: "Thành công",
-      description: `Đã ${newSupply.action === "import" ? "nhập" : "xuất"} ${quantity} ${typeName}`,
-    })
-
-    setNewSupply({
-      type: "",
-      quantity: "",
-      unitPrice: "",
-      action: "import",
-    })
-    setSelectedDate(new Date())
-    setIsDialogOpen(false)
   }
 
   const handleDeleteSupply = async (supplyId: string, supplyType: string, action: string) => {
-    const typeName = getSupplyLabel(supplyType)
+    const supplyTypeInfo = supplyTypes.find((t) => t.value === supplyType)
+    const typeName = supplyTypeInfo?.label || supplyType
     const actionText = action === "import" ? "nhập kho" : "xuất kho"
 
     if (!confirm(`Bạn có chắc chắn muốn xóa giao dịch ${actionText} ${typeName}?`)) {
       return
     }
 
-    const { error } = await supabase.from("supplies").delete().eq("id", supplyId)
+    try {
+      const response = await fetch(`/api/supplies/${supplyId}`, {
+        method: "DELETE",
+      })
 
-    if (error) {
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Có lỗi xảy ra khi xóa vật tư")
+      }
+
+      await fetchSupplies()
+      toast({
+        title: "Đã xóa",
+        description: `Đã xóa giao dịch ${actionText} ${typeName}`,
+      })
+    } catch (error) {
       console.error("Error deleting supply:", error)
       toast({
         title: "Lỗi",
-        description: "Có lỗi xảy ra khi xóa vật tư",
+        description: error instanceof Error ? error.message : "Có lỗi xảy ra khi xóa vật tư",
         variant: "destructive",
       })
-      return
     }
-
-    await fetchSupplies()
-    toast({
-      title: "Đã xóa",
-      description: `Đã xóa giao dịch ${actionText} ${typeName}`,
-    })
   }
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i)
@@ -250,7 +361,7 @@ export function SupplyDashboard() {
   const monthlyUsageEntries = Object.entries(monthlyUsage)
     .map(([type, data]) => ({
       type,
-      label: getSupplyLabel(type),
+      label: getSupplyTypeLabel(type),
       quantity: data.quantity,
       cost: data.cost,
       share: monthlyUsageTotal > 0 ? (data.cost / monthlyUsageTotal) * 100 : 0,
@@ -259,14 +370,44 @@ export function SupplyDashboard() {
 
   const monthlyUsageCost = monthlyUsageEntries.reduce((sum, item) => sum + item.cost, 0)
 
-  const periodInventoryItems = supplyTypes
-    .map((type) => {
-      const stock = periodInventorySnapshot.stockByType[type.value] || 0
-      const lots = periodInventorySnapshot.lotsByType[type.value] ?? []
+  // Existing transactions use the legacy slug while supply_types uses a UUID.
+  // Resolve matching API types back to the transaction key so both screens read
+  // stock from the same inventory bucket.
+  const suppliesTypeSet = new Set(supplies.map((s) => s.type))
+  const resolvedSupplyTypes = supplyTypes.map((apiType) => {
+    const matchingLegacyTypes = findLegacySupplyTypes(apiType.label, apiType.category)
+    const matchingExistingType = matchingLegacyTypes.find((legacyType) => suppliesTypeSet.has(legacyType.value))
+    const matchingLegacyType = matchingExistingType ?? (matchingLegacyTypes.length === 1 ? matchingLegacyTypes[0] : undefined)
+
+    return {
+      ...apiType,
+      value: matchingLegacyType?.value ?? apiType.value,
+    }
+  })
+
+  const allSupplyTypesMap = new Map<string, { value: string; label: string; category: string }>()
+  for (const legacyType of legacySupplyTypes) {
+    allSupplyTypesMap.set(legacyType.value, legacyType)
+  }
+  for (const apiType of resolvedSupplyTypes) {
+    allSupplyTypesMap.set(apiType.value, apiType)
+  }
+
+  // Get all supply types that have actual transactions (for calculating inventory)
+  const allTypes = Array.from(suppliesTypeSet)
+
+  // For inventory display, include both old and new
+  const periodInventoryItems = allTypes
+    .map((typeId) => {
+      const stock = periodInventorySnapshot.stockByType[typeId] || 0
+      const lots = periodInventorySnapshot.lotsByType[typeId] ?? []
       const inventoryValue = lots.reduce((sum, lot) => sum + lot.remainingQuantity * lot.unitPrice, 0)
+      const supplyType = allSupplyTypesMap.get(typeId)
 
       return {
-        ...type,
+        value: typeId,
+        label: supplyType?.label || getSupplyTypeLabel(typeId),
+        category: supplyType?.category || "Khác",
         stock,
         lots,
         inventoryValue,
@@ -288,21 +429,132 @@ export function SupplyDashboard() {
     {} as Record<string, typeof periodInventoryItems>,
   )
 
-  const groupedOptions = supplyTypes.reduce(
-    (acc, type) => {
-      if (!acc[type.category]) {
-        acc[type.category] = []
-      }
+  const groupedOptions = (() => {
+    // Get items from BOTH supplies data (old transactions) AND new API types
+    const suppliesTypeSet = new Set(supplies.map((s) => s.type))
+    const apiTypesSet = new Set(resolvedSupplyTypes.map((t) => t.value))
+    const allTypeIds = new Set([...Array.from(suppliesTypeSet), ...Array.from(apiTypesSet)])
 
-      acc[type.category].push({
-        ...type,
-        stock: transactionInventorySnapshot.stockByType[type.value] || 0,
+    // Get items with actual stock > 0 OR newly added from API
+    const items = Array.from(allTypeIds)
+      .map((typeId) => {
+        const stock = transactionInventorySnapshot.stockByType[typeId] || 0
+        const apiType = resolvedSupplyTypes.find((t) => t.value === typeId)
+
+        if (apiType) {
+          // From API - use API data
+          return {
+            value: typeId,
+            label: apiType.label,
+            category: apiType.category,
+            stock,
+          }
+        } else {
+          // From supplies - use mapping
+          return {
+            value: typeId,
+            label: getSupplyTypeLabel(typeId),
+            category: allSupplyTypesMap.get(typeId)?.category || "Khác",
+            stock,
+          }
+        }
+      })
+      .filter((item) => item.stock > 0 || resolvedSupplyTypes.some((t) => t.value === item.value)) // Show if has stock OR is new from API
+      .sort((a, b) => {
+        // Sort by category first, then by label
+        if (a.category !== b.category) {
+          return a.category.localeCompare(b.category, "vi")
+        }
+        return a.label.localeCompare(b.label, "vi")
       })
 
-      return acc
-    },
-    {} as Record<string, Array<{ value: string; label: string; category: string; stock: number }>>,
+    // Group by category
+    const grouped: Record<string, typeof items> = {}
+    for (const item of items) {
+      if (!grouped[item.category]) {
+        grouped[item.category] = []
+      }
+      grouped[item.category].push(item)
+    }
+
+    return grouped
+  })()
+
+  const managedSupplyTypes = supplyTypes
+    .map((apiType) => {
+      const resolvedType = resolvedSupplyTypes.find((item) => item.id === apiType.id)
+      const inventoryTypeKeys = new Set([
+        apiType.id,
+        ...findLegacySupplyTypes(apiType.label, apiType.category).map((item) => item.value),
+      ])
+      const stock = Array.from(inventoryTypeKeys).reduce(
+        (sum, typeKey) => sum + (fullInventorySnapshot.stockByType[typeKey] || 0),
+        0,
+      )
+
+      return {
+        ...apiType,
+        value: resolvedType?.value ?? apiType.id,
+        stock,
+      }
+    })
+    .sort((left, right) => {
+      const categoryCompare = left.category.localeCompare(right.category, "vi")
+      return categoryCompare !== 0 ? categoryCompare : left.label.localeCompare(right.label, "vi")
+    })
+
+  const selectedManagedSupplyType = managedSupplyTypes.find(
+    (item) => item.value === newSupply.type || item.id === newSupply.type,
   )
+
+  const handleDeleteSupplyType = async (supplyType: (typeof managedSupplyTypes)[number]) => {
+    if (supplyType.stock > 0) {
+      toast({
+        title: "Không thể xóa",
+        description: `${supplyType.label} vẫn còn tồn ${formatQuantity(supplyType.stock)} sản phẩm. Vui lòng xuất hết tồn kho trước.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    const shouldDelete = confirm(
+      `Xóa “${supplyType.label}” khỏi danh sách vật tư?\n\nLịch sử nhập/xuất cũ vẫn được giữ và bạn có thể thêm lại loại này sau.`,
+    )
+    if (!shouldDelete) {
+      return
+    }
+
+    setDeletingSupplyTypeId(supplyType.id)
+
+    try {
+      const response = await fetch(`/api/supply-types/${supplyType.id}`, { method: "DELETE" })
+      const result = response.status === 204 ? null : await response.json()
+
+      if (!response.ok) {
+        throw new Error(result?.error || "Không thể xóa loại vật tư")
+      }
+
+      setNewSupply((previous) =>
+        previous.type === supplyType.value || previous.type === supplyType.id
+          ? { ...previous, type: "" }
+          : previous,
+      )
+      await fetchSupplyTypes()
+
+      toast({
+        title: "Đã xóa loại vật tư",
+        description: `${supplyType.label} đã được gỡ khỏi danh sách. Lịch sử cũ vẫn được giữ lại.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Không thể xóa",
+        description: error instanceof Error ? error.message : "Có lỗi xảy ra khi xóa loại vật tư",
+        variant: "destructive",
+      })
+    } finally {
+      setDeletingSupplyTypeId(null)
+    }
+  }
 
   const periodLabel = `${months[selectedMonth - 1]?.label ?? `Tháng ${selectedMonth}`}/${selectedYear}`
 
@@ -343,12 +595,13 @@ export function SupplyDashboard() {
                 Thêm Vật Tư
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[calc(100vw-1rem)] max-w-md overflow-hidden rounded-[1.9rem] p-0 sm:w-[calc(100vw-1.5rem)]">
-              <DialogHeader>
-                <DialogTitle className="px-5 pt-6 sm:px-6">Thêm Vật Tư</DialogTitle>
+            <DialogContent className="flex max-h-[calc(100dvh_-_1.5rem)] w-[calc(100vw-1rem)] max-w-md flex-col gap-0 overflow-hidden rounded-[1.9rem] p-0 sm:max-h-[min(90dvh,56rem)] sm:w-[calc(100vw-1.5rem)]">
+              <DialogHeader className="shrink-0 border-b border-slate-100/90 px-5 pb-4 pr-14 pt-6 sm:px-6 sm:pr-14">
+                <DialogTitle>Thêm Vật Tư</DialogTitle>
+                <DialogDescription className="hidden" />
               </DialogHeader>
 
-              <div className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 [-webkit-overflow-scrolling:touch] sm:px-6">
                 <div className="space-y-1.5">
                   <Label>Ngày</Label>
                   <div className="w-full overflow-hidden rounded-[1rem]">
@@ -369,31 +622,56 @@ export function SupplyDashboard() {
 
                 <div className="space-y-1.5">
                   <Label>Loại Vật Tư</Label>
-                  <Select
-                    value={newSupply.type}
-                    onValueChange={(value) => setNewSupply((previous) => ({ ...previous, type: value }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Chọn loại vật tư" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(groupedOptions).map(([category, items]) => (
-                        <div key={category}>
-                          <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                            {category}
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={newSupply.type}
+                      onValueChange={(value) => setNewSupply((previous) => ({ ...previous, type: value }))}
+                    >
+                      <SelectTrigger className="min-w-0 flex-1">
+                        <SelectValue placeholder="Chọn loại vật tư" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(groupedOptions).map(([category, items]) => (
+                          <div key={category}>
+                            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                              {category}
+                            </div>
+                            {items.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                <div className="flex w-full items-center justify-between gap-3">
+                                  <span className="truncate">{type.label}</span>
+                                  <span className="text-xs text-slate-400">Tồn: {type.stock}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
                           </div>
-                          {items.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              <div className="flex w-full items-center justify-between gap-3">
-                                <span className="truncate">{type.label}</span>
-                                <span className="text-xs text-slate-400">Tồn: {type.stock}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </div>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-lg"
+                      className="border-red-100 text-red-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                      disabled={
+                        !selectedManagedSupplyType ||
+                        selectedManagedSupplyType.stock > 0 ||
+                        deletingSupplyTypeId === selectedManagedSupplyType.id
+                      }
+                      onClick={() => selectedManagedSupplyType && handleDeleteSupplyType(selectedManagedSupplyType)}
+                      title={
+                        !selectedManagedSupplyType
+                          ? "Chọn loại vật tư cần xóa"
+                          : selectedManagedSupplyType.stock > 0
+                            ? `Còn tồn ${formatQuantity(selectedManagedSupplyType.stock)} sản phẩm, cần xuất hết trước`
+                            : `Xóa ${selectedManagedSupplyType.label}`
+                      }
+                      aria-label="Xóa loại vật tư đang chọn"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -508,9 +786,109 @@ export function SupplyDashboard() {
                   </div>
                 )}
 
-                <Button onClick={handleSubmit} className="w-full">
+              </div>
+
+              <div className="shrink-0 border-t border-slate-100/90 bg-white/96 px-5 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] pt-3 sm:px-6 sm:pb-4">
+                <Button onClick={handleSubmit} className="h-11 w-full">
                   {newSupply.action === "import" ? "Thêm Vật Tư" : "Xuất Vật Tư"}
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isNewTypeDialogOpen} onOpenChange={setIsNewTypeDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Archive className="mr-2 h-4 w-4" />
+                Quản Lý Loại Vật Tư
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="flex max-h-[calc(100dvh_-_1.5rem)] w-[calc(100vw-1rem)] max-w-lg flex-col gap-0 overflow-hidden rounded-[1.9rem] p-0 sm:max-h-[min(90dvh,56rem)] sm:w-[calc(100vw-1.5rem)]">
+              <DialogHeader className="shrink-0 border-b border-slate-100/90 px-5 pb-4 pr-14 pt-6 sm:px-6 sm:pr-14">
+                <DialogTitle>Quản Lý Loại Vật Tư</DialogTitle>
+                <DialogDescription>
+                  Xóa loại không còn sử dụng hoặc thêm lại khi bạn cần dùng trong tương lai.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 [-webkit-overflow-scrolling:touch] sm:px-6">
+                <section className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Thêm loại vật tư mới</h3>
+                    <p className="mt-1 text-sm text-slate-500">Loại vừa thêm sẽ xuất hiện trong danh sách nhập và xuất kho.</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Tên Vật Tư</Label>
+                    <Input
+                      placeholder="VD: Bột giặt Omo"
+                      value={newSupplyType.label}
+                      onChange={(e) => setNewSupplyType({ ...newSupplyType, label: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Loại</Label>
+                    <Select value={newSupplyType.category} onValueChange={(value) => setNewSupplyType({ ...newSupplyType, category: value })}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Chọn loại" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Nước xả">Nước xả</SelectItem>
+                        <SelectItem value="Nước giặt">Nước giặt</SelectItem>
+                        <SelectItem value="Bột giặt">Bột giặt</SelectItem>
+                        <SelectItem value="Chất tẩy">Chất tẩy</SelectItem>
+                        <SelectItem value="Khác">Khác</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button onClick={handleAddSupplyType} className="w-full">
+                    <Plus className="size-4" />
+                    Thêm Loại Vật Tư
+                  </Button>
+                </section>
+
+                <section className="space-y-3 border-t border-slate-100 pt-5">
+                  <div>
+                    <h3 className="font-semibold text-slate-800">Danh sách đang sử dụng</h3>
+                    <p className="mt-1 text-sm leading-5 text-slate-500">
+                      Lịch sử cũ vẫn được giữ sau khi xóa. Vật tư còn tồn kho cần được xuất hết trước.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {managedSupplyTypes.map((supplyType) => (
+                      <div
+                        key={supplyType.id}
+                        className="flex items-center gap-3 rounded-[1rem] border border-slate-100 bg-slate-50/70 px-3 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-slate-700">{supplyType.label}</p>
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            {supplyType.category} · Tồn: {formatQuantity(supplyType.stock)}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-red-400 hover:bg-red-50 hover:text-red-600"
+                          disabled={supplyType.stock > 0 || deletingSupplyTypeId === supplyType.id}
+                          onClick={() => handleDeleteSupplyType(supplyType)}
+                          title={
+                            supplyType.stock > 0
+                              ? `Còn tồn ${formatQuantity(supplyType.stock)} sản phẩm, cần xuất hết trước`
+                              : `Xóa ${supplyType.label}`
+                          }
+                          aria-label={`Xóa ${supplyType.label}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               </div>
             </DialogContent>
           </Dialog>
@@ -671,7 +1049,7 @@ export function SupplyDashboard() {
                     <div key={supply.id} className="dashboard-list-row">
                       <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex-1">
-                          <h4 className="font-semibold text-slate-800">{getSupplyLabel(supply.type)}</h4>
+                          <h4 className="font-semibold text-slate-800">{getSupplyTypeLabel(supply.type)}</h4>
                           <p className="text-sm text-muted-foreground">
                             {new Date(supply.date).toLocaleDateString("vi-VN")}
                           </p>
