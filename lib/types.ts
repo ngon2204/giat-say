@@ -51,7 +51,7 @@ export interface Supply {
   quantity: number
   unit_price: number
   total_price: number
-  action: "import" | "export"
+  action: "import" | "export" | "adjustment"
   created_at: string
 }
 
@@ -61,7 +61,7 @@ export interface NewSupply {
   quantity: number
   unit_price: number
   total_price: number
-  action: "import" | "export"
+  action: "import" | "export" | "adjustment"
 }
 
 export interface SupplyType {

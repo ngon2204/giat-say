@@ -5,11 +5,9 @@ import {
   Banknote,
   CalendarDays,
   CreditCard,
-  Mic,
   Phone,
   Plus,
   Sparkles,
-  Square,
   Trash2,
 } from "lucide-react"
 import { format } from "date-fns"
@@ -29,46 +27,13 @@ import { supabase, type NewOrder, type Order } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
 type EntryMode = "single" | "quick"
-type SpeechRecognitionErrorEventLike = Event & { error?: string }
-type SpeechRecognitionAlternativeLike = { transcript: string }
-type SpeechRecognitionResultLike = {
-  readonly isFinal: boolean
-  readonly length: number
-  [index: number]: SpeechRecognitionAlternativeLike
-}
-type SpeechRecognitionResultListLike = {
-  readonly length: number
-  [index: number]: SpeechRecognitionResultLike
-}
-type SpeechRecognitionEventLike = Event & {
-  readonly results: SpeechRecognitionResultListLike
-}
-type SpeechRecognitionLike = EventTarget & {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  maxAlternatives: number
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-  abort: () => void
-}
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor
-    webkitSpeechRecognition?: SpeechRecognitionConstructor
-  }
-}
 
 interface QuickOrderDraft {
   index: number
   raw: string
   customerName: string
   amount: number
+  services: string[]
 }
 
 const serviceOptions = [
@@ -114,7 +79,42 @@ function parseSpokenAmount(rawAmount: string, rawUnit?: string) {
   return amount > 0 ? amount : null
 }
 
-function parseQuickOrders(value: string) {
+const serviceAliases: Record<string, string> = {
+  ao: "clothes",
+  qa: "clothes",
+  quanao: "clothes",
+  clothes: "clothes",
+  chan: "blanket",
+  men: "blanket",
+  chanmen: "blanket",
+  cm: "blanket",
+  blanket: "blanket",
+  gaubong: "stuffed",
+  gb: "stuffed",
+  stuffed: "stuffed",
+  giay: "shoes",
+  g: "shoes",
+  shoes: "shoes",
+  topper: "topper",
+  top: "topper",
+  khan: "towel",
+  kh: "towel",
+  towel: "towel",
+  rem: "curtain",
+  remcua: "curtain",
+  rc: "curtain",
+  curtain: "curtain",
+}
+
+function normalizeServiceAlias(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("vi")
+    .replace(/[^a-z0-9]/g, "")
+}
+
+function parseQuickOrders(value: string, defaultServices: string[]) {
   const valid: QuickOrderDraft[] = []
   const invalid: string[] = []
 
@@ -123,18 +123,29 @@ function parseQuickOrders(value: string) {
     .map((entry) => entry.trim())
     .filter(Boolean)
     .forEach((entry, index) => {
-      const match = entry.replace(/[.]+$/g, "").trim().match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(k|nghìn|nghin|ngàn|ngan)?$/i)
+      const match = entry
+        .replace(/[.]+$/g, "")
+        .trim()
+        .match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(k|nghìn|nghin|ngàn|ngan)?(?:\s+(.+))?$/i)
 
       if (!match) {
         invalid.push(entry)
         return
       }
 
-      const [, rawName, rawAmount, rawUnit] = match
+      const [, rawName, rawAmount, rawUnit, rawServices] = match
       const amount = parseSpokenAmount(rawAmount, rawUnit)
-      const customerName = capitalizeWords(rawName.trim())
+      const honorificMatch = rawName.trim().match(/^([ac])\s+(.+)$/i)
+      const honorific = honorificMatch?.[1].toLowerCase() === "a" ? "Anh" : honorificMatch ? "Chị" : ""
+      const name = capitalizeWords((honorificMatch?.[2] ?? rawName).trim())
+      const customerName = honorific ? `${honorific} ${name}` : name
+      const services = rawServices
+        ? rawServices
+            .split(/\s*(?:\+|\/| và )\s*/i)
+            .map((service) => serviceAliases[normalizeServiceAlias(service)])
+        : defaultServices
 
-      if (!amount || !customerName) {
+      if (!amount || !customerName || services.length === 0 || services.some((service) => !service)) {
         invalid.push(entry)
         return
       }
@@ -144,6 +155,7 @@ function parseQuickOrders(value: string) {
         raw: entry,
         customerName,
         amount,
+        services,
       })
     })
 
@@ -156,13 +168,8 @@ export function DailyDashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [entryMode, setEntryMode] = useState<EntryMode>("single")
   const [quickInput, setQuickInput] = useState("")
-  const [isListening, setIsListening] = useState(false)
-  const [speechSupported, setSpeechSupported] = useState(false)
   const [newOrder, setNewOrder] = useState(defaultOrderForm)
   const customerNameInputRef = useRef<HTMLInputElement>(null)
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
-  const isStoppingRecognitionRef = useRef(false)
-  const speechBaseTextRef = useRef("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -172,22 +179,11 @@ export function DailyDashboard() {
   }, [])
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSpeechSupported(Boolean(window.SpeechRecognition || window.webkitSpeechRecognition))
-    }
-  }, [])
-
-  useEffect(() => {
     if (!isDialogOpen || entryMode !== "single") return
 
     const timer = window.setTimeout(() => customerNameInputRef.current?.focus(), 50)
     return () => window.clearTimeout(timer)
   }, [entryMode, isDialogOpen])
-
-  useEffect(() => {
-    if (isDialogOpen || !recognitionRef.current) return
-    abortRecognition()
-  }, [isDialogOpen])
 
   const fetchOrders = async () => {
     const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false })
@@ -283,18 +279,12 @@ export function DailyDashboard() {
     })
   }
 
-  const quickOrderPreview = useMemo(() => parseQuickOrders(quickInput), [quickInput])
+  const quickOrderPreview = useMemo(
+    () => parseQuickOrders(quickInput, newOrder.services),
+    [quickInput, newOrder.services],
+  )
 
   const handleQuickSubmit = async () => {
-    if (newOrder.services.length === 0) {
-      toast({
-        title: "Lỗi",
-        description: "Hãy chọn ít nhất một dịch vụ mặc định cho danh sách nhập nhanh",
-        variant: "destructive",
-      })
-      return
-    }
-
     if (quickOrderPreview.valid.length === 0) {
       toast({
         title: "Lỗi",
@@ -317,7 +307,7 @@ export function DailyDashboard() {
       date: format(selectedDate, "yyyy-MM-dd"),
       customer_name: item.customerName,
       phone: "",
-      services: newOrder.services,
+      services: item.services,
       weight: 0,
       amount: item.amount,
       note: "",
@@ -355,110 +345,6 @@ export function DailyDashboard() {
         variant: "destructive",
       })
     }
-  }
-
-  const abortRecognition = () => {
-    const recognition = recognitionRef.current
-
-    if (!recognition) {
-      setIsListening(false)
-      isStoppingRecognitionRef.current = false
-      return
-    }
-
-    recognitionRef.current = null
-    recognition.onresult = null
-    recognition.onerror = null
-    recognition.onend = null
-    setIsListening(false)
-
-    try {
-      recognition.abort()
-    } catch {
-      // Safari may throw if the recognition session already ended.
-    }
-  }
-
-  const stopListening = () => {
-    isStoppingRecognitionRef.current = true
-    abortRecognition()
-    window.setTimeout(() => {
-      isStoppingRecognitionRef.current = false
-    }, 0)
-  }
-
-  const startListening = () => {
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition
-
-    if (!SpeechRecognitionCtor) {
-      toast({
-        title: "Trình duyệt chưa hỗ trợ",
-        description: "Bạn vẫn có thể dán chuỗi kiểu 'khang 45, tuấn 50, trang 70' vào ô nhập nhanh.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    abortRecognition()
-    isStoppingRecognitionRef.current = false
-
-    const recognition = new SpeechRecognitionCtor()
-    const baseText = quickInput.trim()
-    const prefix = baseText ? `${baseText}${/[,\n;]$/.test(baseText) ? " " : ", "}` : ""
-
-    speechBaseTextRef.current = prefix
-    recognition.lang = "vi-VN"
-    recognition.continuous = false
-    recognition.interimResults = true
-    recognition.maxAlternatives = 1
-
-    recognition.onresult = (event) => {
-      const transcript = Array.from(
-        { length: event.results.length },
-        (_, index) => event.results[index]?.[0]?.transcript ?? "",
-      )
-        .join(" ")
-        .trim()
-
-      setQuickInput(`${speechBaseTextRef.current}${transcript}`.trim())
-    }
-
-    recognition.onerror = (event) => {
-      const wasManualStop = isStoppingRecognitionRef.current || event.error === "aborted"
-
-      recognitionRef.current = null
-      setIsListening(false)
-      isStoppingRecognitionRef.current = false
-
-      if (wasManualStop) {
-        return
-      }
-
-      if (event.error === "not-allowed") {
-        toast({
-          title: "Chưa có quyền micro",
-          description: "Hãy cho phép microphone trong Safari rồi thử lại.",
-          variant: "destructive",
-        })
-        return
-      }
-
-      toast({
-        title: "Không nghe được giọng nói",
-        description: "Bạn có thể bấm lại micro hoặc dán nội dung vào ô nhập nhanh.",
-        variant: "destructive",
-      })
-    }
-
-    recognition.onend = () => {
-      recognitionRef.current = null
-      setIsListening(false)
-      isStoppingRecognitionRef.current = false
-    }
-
-    recognitionRef.current = recognition
-    setIsListening(true)
-    recognition.start()
   }
 
   const handleDeleteOrder = async (orderId: string, customerName: string) => {
@@ -536,7 +422,7 @@ export function DailyDashboard() {
                   className="h-11"
                   onClick={() => setEntryMode("quick")}
                 >
-                  Nhập nhanh / giọng nói
+                  Nhập nhanh
                 </Button>
               </div>
 
@@ -631,11 +517,9 @@ export function DailyDashboard() {
                     <Label>Dịch vụ</Label>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       {serviceOptions.map((service) => (
-                        <button
+                        <div
                           key={service.id}
-                          type="button"
                           className="flex items-center gap-2 rounded-[1rem] border border-slate-200/75 bg-slate-50/90 px-3 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-xs"
-                          onClick={() => handleServiceChange(service.id, !newOrder.services.includes(service.id))}
                         >
                           <Checkbox
                             id={service.id}
@@ -645,7 +529,7 @@ export function DailyDashboard() {
                           <Label htmlFor={service.id} className="cursor-pointer">
                             {service.label}
                           </Label>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -666,11 +550,9 @@ export function DailyDashboard() {
                       <Label>Dịch vụ mặc định</Label>
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         {serviceOptions.map((service) => (
-                          <button
+                          <div
                             key={service.id}
-                            type="button"
                             className="flex items-center gap-2 rounded-[1rem] border border-slate-200/75 bg-slate-50/90 px-3 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-xs"
-                            onClick={() => handleServiceChange(service.id, !newOrder.services.includes(service.id))}
                           >
                             <Checkbox
                               id={`quick-${service.id}`}
@@ -680,7 +562,7 @@ export function DailyDashboard() {
                             <Label htmlFor={`quick-${service.id}`} className="cursor-pointer">
                               {service.label}
                             </Label>
-                          </button>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -707,44 +589,28 @@ export function DailyDashboard() {
                   <div className="rounded-[1.4rem] border border-slate-200/80 bg-slate-50/85 p-3.5 sm:p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-slate-700">Nhập nhanh bằng giọng nói hoặc văn bản</p>
+                        <p className="text-sm font-semibold text-slate-700">Nhập nhanh bằng văn bản</p>
                         <p className="text-xs text-slate-500">
-                          App sẽ tự tách tên khách và số tiền thành từng đơn riêng.
+                          Nhập tên, số tiền và có thể thêm dịch vụ hoặc viết tắt ở cuối mỗi dòng.
                         </p>
                       </div>
-
-                      <Button
-                        type="button"
-                        variant={isListening ? "destructive" : "outline"}
-                        className="h-11 sm:w-auto"
-                        onClick={isListening ? stopListening : startListening}
-                        disabled={!speechSupported && !isListening}
-                      >
-                        {isListening ? <Square className="size-4" /> : <Mic className="size-4" />}
-                        {isListening ? "Dừng ghi âm" : "Bật micro"}
-                      </Button>
                     </div>
 
                     <div className="mt-4">
-                      <Label htmlFor="quick-entry">Danh sách đọc vào hoặc dán vào</Label>
+                      <Label htmlFor="quick-entry">Danh sách đơn</Label>
                       <textarea
                         id="quick-entry"
                         value={quickInput}
                         onChange={(event) => setQuickInput(event.target.value)}
-                        placeholder=""
+                        placeholder={"Ví dụ:\na Khang 45 qa\nc Tuấn 50 cm\nTrang 70"}
                         className="mt-2 min-h-24 w-full rounded-[1.1rem] border border-slate-200/80 bg-white/92 px-4 py-3 text-base text-slate-700 shadow-xs outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus:border-primary/40 focus:ring-[4px] focus:ring-primary/20 md:text-sm sm:min-h-28"
                       />
                     </div>
 
-                    {speechSupported ? (
-                      <p className="mt-2 text-xs text-slate-500">
-                        Nếu Safari hỏi quyền microphone, hãy bấm cho phép rồi đọc một câu liền mạch.
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs text-slate-500">
-                        Trình duyệt này không bật được micro, nhưng bạn vẫn có thể dán nội dung để app tự tách đơn.
-                      </p>
-                    )}
+                    <p className="mt-2 text-xs text-slate-500">
+                      Viết mỗi đơn trên một dòng: a + tên (Anh), c + tên (Chị), số tiền và mã dịch vụ tùy chọn. Mã nhanh: qa/quần áo, cm/chăn mền,
+                      gb/gấu bông, g/giày, top/topper, kh/khăn, rc/rèm cửa. Không ghi dịch vụ thì dùng lựa chọn mặc định.
+                    </p>
                   </div>
 
                   <div className="rounded-[1.4rem] border border-slate-200/80 bg-white/92 p-3.5 sm:p-4">
@@ -766,7 +632,14 @@ export function DailyDashboard() {
                               <p className="font-semibold text-slate-700">
                                 Đơn {item.index}: {item.customerName}
                               </p>
-                              <p className="text-xs text-slate-500">Đọc vào: {item.raw}</p>
+                              <p className="text-xs text-slate-500">Nội dung nhập: {item.raw}</p>
+                              <p className="text-xs text-slate-500">
+                                Dịch vụ:{" "}
+                                {item.services
+                                  .map((serviceId) => serviceOptions.find((service) => service.id === serviceId)?.label)
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </p>
                             </div>
                             <p className="text-base font-semibold text-emerald-600">
                               {item.amount.toLocaleString("vi-VN")}đ

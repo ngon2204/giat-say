@@ -47,11 +47,8 @@ function compareSupplies(left: Supply, right: Supply) {
     return createdAtCompare
   }
 
-  if (left.action === right.action) {
-    return 0
-  }
-
-  return left.action === "import" ? -1 : 1
+  const actionOrder = { import: 0, export: 1, adjustment: 2 } as const
+  return actionOrder[left.action] - actionOrder[right.action]
 }
 
 function cloneLots(lots: SupplyLotBalance[]) {

@@ -6,6 +6,7 @@ import { format } from "date-fns"
 import { vi } from "date-fns/locale"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -26,6 +27,7 @@ export function CustomerDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filteredCustomers, setFilteredCustomers] = useState<CustomerInfo[]>([])
+  const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     fetchOrders()
@@ -190,9 +192,14 @@ export function CustomerDashboard() {
                 </div>
 
                 <div className="w-full max-w-xl rounded-[1.25rem] border border-slate-200/70 bg-slate-50/80 p-4">
-                  <p className="mb-3 text-sm font-semibold text-slate-700">Đơn gần nhất</p>
+                  <p className="mb-3 text-sm font-semibold text-slate-700">
+                    {expandedCustomers.has(customer.name.toLowerCase()) ? "Tất cả đơn hàng" : "Đơn gần nhất"}
+                  </p>
                   <div className="space-y-2">
-                    {customer.orderHistory.slice(0, 3).map((order) => (
+                    {(expandedCustomers.has(customer.name.toLowerCase())
+                      ? customer.orderHistory
+                      : customer.orderHistory.slice(0, 3)
+                    ).map((order) => (
                       <div
                         key={order.id}
                         className="flex items-center justify-between rounded-2xl border border-white/70 bg-white/92 px-4 py-3 text-sm"
@@ -211,6 +218,32 @@ export function CustomerDashboard() {
                       </div>
                     ))}
                   </div>
+                  {customer.orderHistory.length > 3 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 w-full text-blue-700 hover:text-blue-800"
+                      onClick={() =>
+                        setExpandedCustomers((current) => {
+                          const next = new Set(current)
+                          const customerKey = customer.name.toLowerCase()
+
+                          if (next.has(customerKey)) {
+                            next.delete(customerKey)
+                          } else {
+                            next.add(customerKey)
+                          }
+
+                          return next
+                        })
+                      }
+                    >
+                      {expandedCustomers.has(customer.name.toLowerCase())
+                        ? "Thu gọn"
+                        : `Xem tất cả ${customer.orderHistory.length} đơn`}
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>

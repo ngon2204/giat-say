@@ -8,8 +8,18 @@ CREATE TABLE IF NOT EXISTS orders (
   weight DECIMAL(10,2) DEFAULT 0,
   amount INTEGER NOT NULL,
   note TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'ready', 'completed')),
+  payment_method VARCHAR(20) NOT NULL DEFAULT 'cash' CHECK (payment_method IN ('cash', 'transfer')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'in_progress', 'ready', 'completed'));
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) NOT NULL DEFAULT 'cash'
+    CHECK (payment_method IN ('cash', 'transfer'));
 
 -- Create utility_bills table
 CREATE TABLE IF NOT EXISTS utility_bills (
@@ -30,9 +40,14 @@ CREATE TABLE IF NOT EXISTS supplies (
   quantity INTEGER NOT NULL,
   unit_price INTEGER NOT NULL,
   total_price INTEGER NOT NULL,
-  action VARCHAR(10) NOT NULL CHECK (action IN ('import', 'export')),
+  action VARCHAR(20) NOT NULL CHECK (action IN ('import', 'export', 'adjustment')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE supplies DROP CONSTRAINT IF EXISTS supplies_action_check;
+ALTER TABLE supplies
+  ADD CONSTRAINT supplies_action_check
+    CHECK (action IN ('import', 'export', 'adjustment'));
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(date);

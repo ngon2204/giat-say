@@ -22,7 +22,7 @@ interface Supply {
   quantity: number
   unit_price: number
   total_price: number
-  action: "import" | "export"
+  action: "import" | "export" | "adjustment"
   created_at: string
 }
 
@@ -174,7 +174,7 @@ export function SupplyDashboard() {
 
   const exportQuantity = Number.parseInt(newSupply.quantity || "0", 10)
   const exportPreview =
-    newSupply.action === "export" && newSupply.type && exportQuantity > 0
+    newSupply.action !== "import" && newSupply.type && exportQuantity > 0
       ? estimateSupplyExport(transactionInventorySnapshot.lotsByType[newSupply.type] ?? [], exportQuantity)
       : null
 
@@ -272,7 +272,12 @@ export function SupplyDashboard() {
 
       toast({
         title: "Thành công",
-        description: `Đã ${newSupply.action === "import" ? "nhập" : "xuất"} ${quantity} ${supplyTypeLabel}`,
+        description:
+          newSupply.action === "import"
+            ? `Đã nhập ${quantity} ${supplyTypeLabel}`
+            : newSupply.action === "export"
+              ? `Đã xuất ${quantity} ${supplyTypeLabel}`
+              : `Đã điều chỉnh giảm tồn ${quantity} ${supplyTypeLabel}, không tính vào chi phí sử dụng`,
       })
 
       setNewSupply({
@@ -296,7 +301,7 @@ export function SupplyDashboard() {
   const handleDeleteSupply = async (supplyId: string, supplyType: string, action: string) => {
     const supplyTypeInfo = supplyTypes.find((t) => t.value === supplyType)
     const typeName = supplyTypeInfo?.label || supplyType
-    const actionText = action === "import" ? "nhập kho" : "xuất kho"
+    const actionText = action === "import" ? "nhập kho" : action === "export" ? "xuất kho" : "điều chỉnh giảm tồn kho"
 
     if (!confirm(`Bạn có chắc chắn muốn xóa giao dịch ${actionText} ${typeName}?`)) {
       return
@@ -691,7 +696,8 @@ export function SupplyDashboard() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="import">Nhập kho</SelectItem>
-                      <SelectItem value="export">Xuất kho</SelectItem>
+                      <SelectItem value="export">Xuất kho (tính chi phí sử dụng)</SelectItem>
+                      <SelectItem value="adjustment">Điều chỉnh giảm tồn (không tính chi phí sử dụng)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -724,9 +730,13 @@ export function SupplyDashboard() {
                         <PackageSearch className="size-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-emerald-700">Xuất kho theo lô nhập cũ trước</p>
+                        <p className="text-sm font-semibold text-emerald-700">
+                          {newSupply.action === "export" ? "Xuất kho theo lô nhập cũ trước" : "Điều chỉnh giảm tồn theo lô nhập cũ trước"}
+                        </p>
                         <p className="mt-1 text-xs leading-5 text-emerald-600">
-                          Hệ thống sẽ tự trừ theo FIFO tại ngày {new Date(transactionDate).toLocaleDateString("vi-VN")}.
+                          {newSupply.action === "export"
+                            ? `Hệ thống sẽ tự trừ theo FIFO tại ngày ${new Date(transactionDate).toLocaleDateString("vi-VN")}.`
+                            : `Giảm số lượng và giá trị tồn theo FIFO tại ngày ${new Date(transactionDate).toLocaleDateString("vi-VN")}, không cộng vào chi phí sử dụng trong tháng.`}
                         </p>
                       </div>
                     </div>
@@ -737,7 +747,7 @@ export function SupplyDashboard() {
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div className="rounded-[1rem] bg-white/88 p-3">
                               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-500">
-                                Tổng giá xuất
+                                {newSupply.action === "export" ? "Tổng giá xuất" : "Giá trị giảm tồn"}
                               </p>
                               <p className="mt-2 text-lg font-semibold text-emerald-700">
                                 {formatCurrency(exportPreview.totalCost)}
@@ -790,7 +800,11 @@ export function SupplyDashboard() {
 
               <div className="shrink-0 border-t border-slate-100/90 bg-white/96 px-5 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] pt-3 sm:px-6 sm:pb-4">
                 <Button onClick={handleSubmit} className="h-11 w-full">
-                  {newSupply.action === "import" ? "Thêm Vật Tư" : "Xuất Vật Tư"}
+                  {newSupply.action === "import"
+                    ? "Thêm Vật Tư"
+                    : newSupply.action === "export"
+                      ? "Xuất Vật Tư"
+                      : "Điều Chỉnh Tồn Kho"}
                 </Button>
               </div>
             </DialogContent>
@@ -1043,7 +1057,14 @@ export function SupplyDashboard() {
                 })
                 .map((supply) => {
                   const exportCost = fullInventorySnapshot.exportCostsById[supply.id]
-                  const displayTotal = supply.action === "export" ? exportCost?.totalCost ?? supply.total_price : supply.total_price
+                  const displayTotal =
+                    supply.action === "import" ? supply.total_price : exportCost?.totalCost ?? supply.total_price
+                  const actionLabel =
+                    supply.action === "import"
+                      ? "Nhập kho"
+                      : supply.action === "export"
+                        ? "Xuất kho"
+                        : "Điều chỉnh giảm tồn (không tính chi phí sử dụng)"
 
                   return (
                     <div key={supply.id} className="dashboard-list-row">
@@ -1054,7 +1075,7 @@ export function SupplyDashboard() {
                             {new Date(supply.date).toLocaleDateString("vi-VN")}
                           </p>
                           <p className="text-sm text-slate-600">
-                            {supply.action === "import" ? "Nhập kho" : "Xuất kho"}: {formatQuantity(supply.quantity)}
+                            {actionLabel}: {formatQuantity(supply.quantity)}
                           </p>
 
                           {supply.action === "import" ? (
@@ -1075,8 +1096,16 @@ export function SupplyDashboard() {
 
                         <div className="flex items-center justify-between gap-2 sm:justify-end">
                           <div className="text-left sm:text-right">
-                            <p className={`font-bold ${supply.action === "import" ? "text-red-600" : "text-blue-600"}`}>
-                              {supply.action === "import" ? "-" : ""}
+                            <p
+                              className={`font-bold ${
+                                supply.action === "import"
+                                  ? "text-red-600"
+                                  : supply.action === "export"
+                                    ? "text-blue-600"
+                                    : "text-amber-600"
+                              }`}
+                            >
+                              {supply.action === "import" ? "-" : supply.action === "adjustment" ? "Giảm " : ""}
                               {formatCurrency(displayTotal)}
                             </p>
                           </div>
