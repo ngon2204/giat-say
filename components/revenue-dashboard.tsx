@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Download, ReceiptText, WalletCards } from "lucide-react"
 
 import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import { exportRevenueToExcel } from "@/lib/export-revenue"
 import { supabase, type Order } from "@/lib/supabase"
 
@@ -31,11 +32,9 @@ export function RevenueDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [isExporting, setIsExporting] = useState(false)
 
-  useEffect(() => {
-    fetchOrders()
-    const interval = setInterval(fetchOrders, 5000)
-    return () => clearInterval(interval)
-  }, [])
+  useRefreshOnFocus(() => {
+    void fetchOrders()
+  })
 
   const fetchOrders = async () => {
     const { data, error } = await supabase.from("orders").select("*").order("created_at", { ascending: false })

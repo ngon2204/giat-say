@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { BadgePercent, Package, ShoppingBag, TrendingUp, Wallet, WalletCards } from "lucide-react"
 
 import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import { buildSupplyInventorySnapshot } from "@/lib/supply-inventory"
 import { getSupplyLabel, getSupplyType } from "@/lib/supply-types"
 import { supabase, type Order, type Supply, type UtilityBill } from "@/lib/supabase"
@@ -47,19 +48,9 @@ export function ProfitDashboard() {
     setSupplies(data || [])
   }
 
-  useEffect(() => {
-    fetchOrders()
-    fetchBills()
-    fetchSupplies()
-
-    const interval = setInterval(() => {
-      fetchOrders()
-      fetchBills()
-      fetchSupplies()
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [])
+  useRefreshOnFocus(() => {
+    void Promise.all([fetchOrders(), fetchBills(), fetchSupplies()])
+  })
 
   const years = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - 2 + index)
 

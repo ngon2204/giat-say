@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DashboardMetricCard } from "@/components/dashboard-metric-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useRefreshOnFocus } from "@/hooks/use-refresh-on-focus"
 import { Input } from "@/components/ui/input"
 import { supabase, type Order } from "@/lib/supabase"
 
@@ -29,11 +30,9 @@ export function CustomerDashboard() {
   const [filteredCustomers, setFilteredCustomers] = useState<CustomerInfo[]>([])
   const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(() => new Set())
 
-  useEffect(() => {
-    fetchOrders()
-    const interval = setInterval(fetchOrders, 5000)
-    return () => clearInterval(interval)
-  }, [])
+  useRefreshOnFocus(() => {
+    void fetchOrders()
+  })
 
   useEffect(() => {
     const customerMap = new Map<string, CustomerInfo>()
